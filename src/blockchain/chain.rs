@@ -19,7 +19,7 @@ use crate::blockchain::types::{BlockQuality, MineResult, Options, ZoneData};
 use crate::commons::constants::*;
 use crate::keystore::check_public_key_strength;
 use crate::settings::Settings;
-use crate::{check_domain, get_domain_zone, is_ruvchain_record, Block, Bytes, Keystore, Transaction, from_hex};
+use crate::{check_domain, get_domain_zone, is_ruvchain_record, Block, Bytes, Keystore, Transaction};
 use rand::prelude::IteratorRandom;
 
 const TEMP_DB_NAME: &str = ":memory:";
