@@ -1,0 +1,27 @@
+[Unit]
+Description=ruvname
+Wants=network.target
+Wants=ruvname-default-config.service
+After=network.target
+After=ruvname-default-config.service
+
+[Service]
+User=ruvname
+Group=ruvname
+
+ProtectHome=true
+ProtectSystem=true
+
+SecureBits=keep-caps
+CapabilityBoundingSet=CAP_NET_BIND_SERVICE
+AmbientCapabilities=CAP_NET_BIND_SERVICE
+
+SyslogIdentifier=ruvname
+WorkingDirectory=/var/lib/ruvname
+ExecStart=/usr/bin/ruvname -n -c /etc/ruvname.conf
+ExecReload=/bin/kill -HUP $MAINPID
+Restart=always
+TimeoutStopSec=5
+
+[Install]
+WantedBy=multi-user.target
