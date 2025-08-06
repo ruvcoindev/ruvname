@@ -25,7 +25,7 @@ use std::thread::JoinHandle;
 use ruvname::event::Event;
 use ruvname::eventbus::{post, register};
 use ruvname::keystore::create_key;
-use ruvname::{dns_utils, Block, Bytes, Chain, Context, Keystore, Miner, Network, Settings, Transaction, RUVNAME_DEBUG, RUVNAME_TRACE, DB_NAME, ORIGIN_DIFFICULTY};
+use ruvname::{dns_utils, Block, Bytes, Chain, Context, Keystore, Miner, Network, Settings, Transaction, DB_NAME, ORIGIN_DIFFICULTY};
 #[cfg(windows)]
 use crate::win_service::start_service;
 
