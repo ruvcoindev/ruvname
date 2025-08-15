@@ -123,6 +123,68 @@ check-deps:
 	done
 	@echo "✅ Все зависимости установлены"
 
+
+# === Публикация документации ===
+
+.PHONY: docs-publish
+
+## Опубликовать документацию на GitHub Pages
+docs-publish: docs
+	@echo "🌍 Публикация документации на GitHub Pages..."
+	@echo "   Убедитесь, что вы в репозитории с GitHub-репозиторием"
+
+	# Проверка, установлен ли git
+	@if ! command -v git >/dev/null; then \
+		echo "❌ git не установлен"; \
+		exit 1; \
+	fi
+
+	# Проверка, что это GitHub-репозиторий
+	@if ! git remote -v | grep -q 'github.com'; then \
+		echo "⚠️  Репозиторий не привязан к GitHub. Публикация отменена."; \
+		exit 1; \
+	fi
+
+	# Сохраняем текущую ветку
+	@CURRENT_BRANCH=$$(git branch --show-current); \
+	echo "📦 Текущая ветка: $$CURRENT_BRANCH"
+
+	# Создаём или переключаемся на gh-pages
+	@git fetch origin gh-pages || echo "gh-pages ветка не существует, будет создана"
+	@git checkout gh-pages 2>/dev/null || \
+		(git checkout --orphan gh-pages && git rm -rf . && echo "Создана новая ветка gh-pages")
+
+	# Копируем только HTML
+	@echo "🧹 Очистка старых файлов..."
+	@git rm -rf . || true
+	@rm -rf .gitignore || true
+
+	@echo "📦 Копируем book/book/html/ -> корень..."
+	@cp -r book/book/html/* . || (echo "❌ Не удалось скопировать book/book/html/"; exit 1)
+
+	# Добавляем .nojekyll (чтобы работали файлы с подчёркиванием, как _book)
+	@echo "" > .nojekyll
+
+	# Коммит и пуш
+	@echo "💾 Коммит изменений..."
+	@git add .
+	@git config user.name "Automated CI" || true
+	@git config user.email "ci@ruv.name" || true
+	@git commit -m "docs: обновлено на $(shell date '+%Y-%m-%d %H:%M:%S') из $$CURRENT_BRANCH"
+
+	@echo "🚀 Публикация на GitHub Pages..."
+	@git push origin gh-pages --force
+
+	# Возвращаемся на предыдущую ветку
+	@git checkout "$$CURRENT_BRANCH" 2>/dev/null || true
+
+	@echo ""
+	@echo "✅ Документация опубликована!"
+	@echo "   Откройте: https://$(shell git config --get remote.origin.url | sed -E 's/.*github.com[/:]([^/]+)\\/(.+).git/\\1.github.io\\/\\2/' | sed 's/\\.git$$//')"
+	@echo ""
+
+
+
 # === Помощь ===
 
 ## Показать справку
