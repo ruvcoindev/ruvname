@@ -11,7 +11,7 @@ name: Releases
 jobs:
   get_version:
     name: Get version from Git tag
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     outputs:
       project_version: ${{ env.VERSION }}
     steps:
