@@ -41,3 +41,6 @@ bootstraps = ["9.9.9.9:53", "94.140.14.14:53"]
 threads = 0
 # Set lower priority for mining threads
 lower = true
+
+[updates]
+check_url = "https://api.github.com/repos/ruvcoindev/ruvname/releases/latest"

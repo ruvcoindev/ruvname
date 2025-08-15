@@ -1,0 +1,243 @@
+openapi: 3.0.3
+info:
+  title: RUVNAME API
+  description: REST API для взаимодействия с локальным узлом RUVNAME.
+  version: 0.1.0
+  contact:
+    name: RUVNAME Team
+    url: https://ruv.name
+    email: admin@ruvcha.in
+
+servers:
+  - url: http://127.0.0.1:5311
+    description: Локальный узел
+
+components:
+  schemas:
+    DomainData:
+      type: object
+      properties:
+        records:
+          type: array
+          items:
+            type: object
+            properties:
+              type:
+                type: string
+                example: A
+              domain:
+                type: string
+                example: mysite.ruv
+              addr:
+                type: string
+                example: 127.0.0.1
+              ttl:
+                type: integer
+                example: 300
+        info:
+          type: string
+          maxLength: 250
+          example: My personal website
+        contacts:
+          type: array
+          items:
+            type: object
+            properties:
+              name:
+                type: string
+                example: email
+              value:
+                type: string
+                example: me@example.com
+
+    UiStatus:
+      type: object
+      properties:
+        mining:
+          type: boolean
+        syncing:
+          type: boolean
+        synced_blocks:
+          type: integer
+        sync_height:
+          type: integer
+        max_diff:
+          type: integer
+        speed:
+          type: integer
+
+    KeyInfo:
+      type: object
+      properties:
+        file:
+          type: string
+        address:
+          type: string
+        domains:
+          type: integer
+
+paths:
+  /resolve:
+    get:
+      summary: Разрешить доменное имя
+      parameters:
+        - name: name
+          in: query
+          required: true
+          schema:
+            type: string
+        - name: type
+          in: query
+          schema:
+            type: string
+            default: A
+            enum: [A, AAAA, TXT, MX, CNAME, SRV]
+      responses:
+        '200':
+          description: Успешный ответ
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: ok
+                  answer:
+                    type: array
+                    items:
+                      type: object
+        '404':
+          description: Домен не найден
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: error
+                  message:
+                    type: string
+
+  /domain:
+    post:
+      summary: Зарегистрировать новый домен
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DomainData'
+      responses:
+        '200':
+          description: Майнинг начат
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: mining_started
+                  domain:
+                    type: string
+
+  /domains:
+    get:
+      summary: Получить список доменов
+      responses:
+        '200':
+          description: Список доменов
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    name:
+                      type: string
+                    timestamp:
+                      type: integer
+                    data:
+                      type: string
+
+  /start_mining:
+    post:
+      summary: Запустить майнинг
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                threads:
+                  type: integer
+      responses:
+        '200':
+          description: Майнинг запущен
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: mining_started
+
+  /stop_mining:
+    post:
+      summary: Остановить майнинг
+      responses:
+        '200':
+          description: Майнинг остановлен
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+
+  /status:
+    get:
+      summary: Получить статус узла
+      responses:
+        '200':
+          description: Статус узла
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UiStatus'
+
+  /keys:
+    get:
+      summary: Получить список ключей
+      responses:
+        '200':
+          description: Список ключей
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/KeyInfo'
+
+  /new_key:
+    post:
+      summary: Создать новый ключ
+      responses:
+        '200':
+          description: Ключ создан
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                  file:
+                    type: string
+                  address:
+                    type: string

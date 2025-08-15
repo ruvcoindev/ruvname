@@ -1,0 +1,118 @@
+name: Release RUVNAME
+
+on:
+  push:
+    tags:
+      - "v[0-9]+.[0-9]+.[0-9]+"
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  get_version:
+    runs-on: ubuntu-22.04
+    outputs:
+      version: ${{ env.VERSION }}
+    steps:
+      - uses: actions/checkout@v4
+      - run: |
+          VERSION="${GITHUB_REF#refs/tags/}"
+          echo "VERSION=$VERSION" >> $GITHUB_ENV
+          echo "Version: $VERSION"
+
+  create_release:
+    needs: get_version
+    runs-on: ubuntu-22.04
+    permissions:
+      contents: write
+    outputs:
+      upload_url: ${{ steps.create_release.outputs.upload_url }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: softprops/action-gh-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.PAT }}
+        with:
+          tag_name: ${{ needs.get_version.outputs.version }}
+          name: ${{ needs.get_version.outputs.version }}
+          body: |
+            ## New
+            * Added new features.
+            ## Bug Fixes & Improvements
+            * Various fixes and stability improvements.
+            ## Documentation & others
+            * Updated documentation.
+          draft: true
+          prerelease: false
+          generate_release_notes: false
+
+  build_linux:
+    runs-on: ubuntu-22.04
+    needs: [create_release, get_version]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install deps
+        run: |
+          sudo apt update
+          sudo apt install -y libglib2.0-dev libcairo2-dev libpango1.0-dev libgtk-3-dev libwebkit2gtk-4.0-dev musl-tools upx
+      - name: Install cross
+        run: cargo install cross --git https://github.com/cross-rs/cross
+      - name: Build and package
+        run: |
+          ARCHS="linux-amd64" BUILD_NOGUI=true bash contrib/deb/build-multiarch.sh
+      - name: Upload .deb
+        uses: actions/upload-release-asset@v4
+        env:
+          GITHUB_TOKEN: ${{ secrets.PAT }}
+        with:
+          upload_url: ${{ needs.create_release.outputs.upload_url }}
+          asset_path: bin/deb/ruvname-linux-amd64-v${{ needs.get_version.outputs.version }}-nogui.deb
+          asset_name: ruvname-linux-amd64-v${{ needs.get_version.outputs.version }}-nogui.deb
+          asset_content_type: application/vnd.debian.binary-package
+
+  build_windows:
+    runs-on: windows-2022
+    needs: [create_release, get_version]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install tools
+        run: |
+          choco install upx -y
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+      - name: Build and package
+        run: |
+          $env:ARCHS="windows-x64"
+          $env:BUILD_NOGUI="true"
+          $env:BUILD_GUI="true"
+          bash contrib/deb/build-multiarch.sh
+      - name: Upload .zip
+        uses: actions/upload-release-asset@v4
+        env:
+          GITHUB_TOKEN: ${{ secrets.PAT }}
+        with:
+          upload_url: ${{ needs.create_release.outputs.upload_url }}
+          asset_path: bin/win/ruvname-windows-x64-v${{ needs.get_version.outputs.version }}-gui.zip
+          asset_name: ruvname-windows-x64-v${{ needs.get_version.outputs.version }}-gui.zip
+          asset_content_type: application/zip
+
+  build_macos:
+    runs-on: macos-14
+    needs: [create_release, get_version]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install upx
+        run: brew install upx
+      - name: Build and package
+        run: |
+          ARCHS="macos-x64,macos-arm64" BUILD_NOGUI=true bash contrib/deb/build-multiarch.sh
+          tar -czf ruvname-macos-universal-v${{ needs.get_version.outputs.version }}-nogui.tar.gz -C bin/ ruvname-macos-x64-v${{ needs.get_version.outputs.version }}-nogui ruvname-macos-arm64-v${{ needs.get_version.outputs.version }}-nogui
+      - name: Upload .tar.gz
+        uses: actions/upload-release-asset@v4
+        env:
+          GITHUB_TOKEN: ${{ secrets.PAT }}
+        with:
+          upload_url: ${{ needs.create_release.outputs.upload_url }}
+          asset_path: ruvname-macos-universal-v${{ needs.get_version.outputs.version }}-nogui.tar.gz
+          asset_name: ruvname-macos-universal-v${{ needs.get_version.outputs.version }}-nogui.tar.gz
+          asset_content_type: application/gzip

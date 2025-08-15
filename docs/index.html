@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Документация RUVNAME</title>
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      line-height: 1.6;
+      color: #333;
+      max-width: 900px;
+      margin: 40px auto;
+      padding: 20px;
+    }
+    h1, h2, h3 {
+      color: #2c3e50;
+    }
+    ul {
+      list-style: none;
+      padding: 0;
+    }
+    li {
+      margin: 10px 0;
+    }
+    a {
+      text-decoration: none;
+      color: #3498db;
+    }
+    a:hover {
+      text-decoration: underline;
+    }
+    .card {
+      border: 1px solid #ddd;
+      border-radius: 8px;
+      padding: 20px;
+      margin-bottom: 20px;
+      background-color: #f9f9f9;
+    }
+    .footer {
+      margin-top: 60px;
+      text-align: center;
+      color: #7f8c8d;
+      font-size: 0.9em;
+    }
+    .badge {
+      display: inline-block;
+      background: #e74c3c;
+      color: white;
+      padding: 2px 8px;
+      border-radius: 4px;
+      font-size: 0.8em;
+      margin-left: 8px;
+    }
+  </style>
+</head>
+<body>
+  <h1>📚 Документация RUVNAME</h1>
+  <p>Децентрализованная DNS-система на блокчейне. Версия 0.1.0</p>
+
+  <div class="card">
+    <h2>📖 Основная документация</h2>
+    <ul>
+      <li><a href="../README.md">Главная (README.md)</a></li>
+      <li><a href="api/README.md">API Overview</a></li>
+      <li><a href="api/dns.md">DNS API</a></li>
+      <li><a href="api/domains.md">Домены</a></li>
+      <li><a href="api/mining.md">Майнинг</a></li>
+      <li><a href="api/keys.md">Ключи</a></li>
+      <li><a href="api/blocks.md">Блокчейн</a></li>
+      <li><a href="api/websocket.md">WebSocket / UI Events</a></li>
+    </ul>
+  </div>
+
+  <div class="card">
+    <h2>🛠 Примеры использования</h2>
+    <ul>
+      <li><a href="examples/python_client.py">Python: Клиент API</a></li>
+      <li><a href="examples/js_client.html">JavaScript: Веб-клиент</a></li>
+    </ul>
+  </div>
+
+  <div class="card">
+    <h2>🔧 Инструменты</h2>
+    <ul>
+      <li><a href="api/openapi.yaml">OpenAPI (Swagger) спецификация <span class="badge">YAML</span></a></li>
+      <li><a href="https://editor.swagger.io" target="_blank">Swagger Editor (онлайн)</a></li>
+    </ul>
+  </div>
+
+  <div class="footer">
+    <p>© 2025 RUVNAME. Часть экосистемы <a href="https://ruv.name">RUVchain</a>.</p>
+  </div>
+</body>
+</html>

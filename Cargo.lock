@@ -1237,6 +1237,8 @@ dependencies = [
  "windows-service",
  "winres",
  "x25519-dalek",
+ "zerofrom",
+ "zeroize",
 ]
 
 [[package]]

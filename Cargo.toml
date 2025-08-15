@@ -3,7 +3,7 @@ name = "ruvname"
 version = "0.1.0"
 authors = ["ruvcoindev <admin@ruvcha.in>"]
 edition = "2021"
-build = "build.rs"
+#build = "build.rs"
 readme = "README.md"
 homepage = "https://ruvname.ruvcha.in"
 repository = "https://github.com/ruvcoindev/ruvname"
@@ -40,6 +40,8 @@ derive_more = { version = "1.0.0", features = ["display", "error", "from"] }
 lazy_static = "1.5.0"
 spmc = "0.3.0"
 thread-priority = "1.2.0"
+zeroize = "1.8.1"
+zerofrom = "0.1.6"
 
 # Optional dependencies regulated by features
 web-view = { git = "https://github.com/Boscop/web-view", features = [], optional = true }
@@ -73,3 +75,4 @@ webgui = ["web-view", "tinyfiledialogs", "open"]
 edge = ["webgui", "web-view/edge"]
 doh = ["ureq"]
 default = ["webgui", "doh"]
+updates = ["ureq"]

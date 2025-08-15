@@ -1,7 +1,7 @@
 [Unit]
 Description=RUVNAME default config generator
-ConditionPathExists=|!/etc/ruvname.toml
-ConditionFileNotEmpty=|!/etc/ruvname.toml
+ConditionPathExists=|!/etc/ruvname.conf
+ConditionFileNotEmpty=|!/etc/ruvname.conf
 Wants=local-fs.target
 After=local-fs.target
 
@@ -9,5 +9,5 @@ After=local-fs.target
 Type=oneshot
 User=ruvname
 Group=ruvname
-StandardOutput=file:/etc/ruvname.toml
+StandardOutput=file:/etc/ruvname.conf
 ExecStart=/usr/bin/ruvname -g

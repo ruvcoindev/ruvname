@@ -1,0 +1,7 @@
+[book]
+title = "RUVNAME Documentation"
+description = "Decentralized DNS on Blockchain"
+authors = ["ruvcoindev"]
+language = "ru"
+src = "src"
+multilingual = false

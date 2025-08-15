@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>RUVNAME JS Client</title>
+  <style>
+    body { font-family: sans-serif; margin: 40px; }
+    pre { background: #f4f4f4; padding: 10px; border-radius: 5px; }
+    button { margin: 5px; padding: 10px; }
+  </style>
+</head>
+<body>
+  <h1>🌐 RUVNAME JavaScript Client</h1>
+
+  <button onclick="getStatus()">Получить статус</button>
+  <button onclick="resolveDomain()">Разрешить ya.ru.bit</button>
+  <button onclick="createKey()">Создать ключ</button>
+  <button onclick="startMining()">Запустить майнинг</button>
+
+  <h2>Ответ:</h2>
+  <pre id="output">Нажмите кнопку...</pre>
+
+  <script>
+    const API = "http://127.0.0.1:5311";
+
+    async function request(url, options = {}) {
+      try {
+        const resp = await fetch(API + url, options);
+        const data = await resp.json();
+        document.getElementById("output").textContent = JSON.stringify(data, null, 2);
+      } catch (e) {
+        document.getElementById("output").textContent = "Ошибка: " + e.message;
+      }
+    }
+
+    function getStatus() {
+      request("/status");
+    }
+
+    function resolveDomain() {
+      request("/resolve?name=ya.ru.bit&type=A");
+    }
+
+    function createKey() {
+      request("/new_key", { method: "POST" });
+    }
+
+    function startMining() {
+      request("/start_mining", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ threads: 2 })
+      });
+    }
+  </script>
+</body>
+</html>
