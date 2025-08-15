@@ -100,11 +100,11 @@ chown ruvname:ruvname /var/lib/ruvname
 if [ -f /etc/ruvname.conf ];
 then
   mkdir -p /var/backups
-  echo "Backing up configuration file to /var/backups/ruvname.conf.`date +%Y%m%d`"
-  cp /etc/ruvname.conf /var/backups/ruvname.conf.`date +%Y%m%d`
-  echo "Updating /etc/ruvname.conf"
-  /usr/bin/ruvname -u /var/backups/ruvname.conf.`date +%Y%m%d` > /etc/ruvname.conf
-  chgrp ruvname /etc/ruvname.conf
+  echo "Backing up configuration file to /var/backups/ruvname.toml.`date +%Y%m%d`"
+  cp /etc/ruvname.toml /var/backups/ruvname.toml.`date +%Y%m%d`
+  echo "Updating /etc/ruvname.toml"
+  /usr/bin/ruvname -u /var/backups/ruvname.toml.`date +%Y%m%d` > /etc/ruvname.toml
+  chgrp ruvname /etc/ruvname.toml
 
   if command -v systemctl >/dev/null; then
     systemctl daemon-reload >/dev/null || true
@@ -112,10 +112,10 @@ then
     systemctl start ruvname || true
   fi
 else
-  echo "Generating initial configuration file /etc/ruvname.conf"
+  echo "Generating initial configuration file /etc/ruvname.toml"
   echo "Please familiarise yourself with this file before starting RUVNAME"
-  sh -c 'umask 0027 && /usr/bin/ruvname -g > /etc/ruvname.conf'
-  chgrp ruvname /etc/ruvname.conf
+  sh -c 'umask 0027 && /usr/bin/ruvname -g > /etc/ruvname.toml'
+  chgrp ruvname /etc/ruvname.toml
 fi
 EOF
 cat > /tmp/$PKGNAME/debian/prerm << EOF
