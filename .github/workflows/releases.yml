@@ -1,0 +1,198 @@
+name: Create Release
+
+on:
+  push:
+    tags:
+      - "v[0-9]+.[0-9]+.[0-9]+"  # например: v1.2.3
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  # === 1. Получить версию из тега ===
+  get_version:
+    name: Get Version
+    runs-on: ubuntu-22.04
+    outputs:
+      version: ${{ env.VERSION }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Extract version from tag
+        run: |
+          VERSION="${GITHUB_REF#refs/tags/}"
+          echo "VERSION=$VERSION" >> $GITHUB_ENV
+          echo "Version detected: $VERSION"
+
+  # === 2. Создать черновик релиза ===
+  create_release:
+    name: Create Draft Release
+    runs-on: ubuntu-22.04
+    needs: get_version
+    permissions:
+      contents: write  # необходимо для создания релиза
+    outputs:
+      upload_url: ${{ steps.create_release.outputs.upload_url }}
+    steps:
+      - name: Create Release
+        id: create_release
+        uses: softprops/action-gh-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.PAT }}  # ← используем PAT, а не GITHUB_TOKEN
+        with:
+          tag_name: ${{ needs.get_version.outputs.version }}
+          name: ${{ needs.get_version.outputs.version }}
+          body: |
+            ## New
+            * Added new features.
+
+            ## Bug Fixes & Improvements
+            * Various fixes and stability improvements.
+
+            ## Documentation & others
+            * Updated documentation.
+          draft: true
+          prerelease: false
+
+  # === 3. Сборка и загрузка бинарников ===
+  build_and_upload:
+    name: Build and Package
+    needs: [create_release, get_version]
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-22.04, windows-2022, macos-12]
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      # --- Установка зависимостей (только для Linux) ---
+      - name: Install system dependencies
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+              libwebkit2gtk-4.0-dev \
+              libgtk-3-dev \
+              libglib2.0-dev \
+              upx
+
+      # --- Установка Rust ---
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      # --- Сборка бинарников ---
+      - name: Build with GUI (Linux/macOS)
+        if: runner.os != 'Windows'
+        run: |
+          cargo build --release
+
+      - name: Build with Edge (Windows)
+        if: runner.os == 'Windows'
+        run: |
+          cargo build --release --features edge
+
+      - name: Build NoGUI (всегда)
+        run: |
+          cargo build --release --no-default-features --target-dir ./target-nogui
+
+      # --- Установка upx для сжатия (если нужно) ---
+      - name: Install UPX
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get install -y upx
+          upx --version
+
+      - name: Compress binaries with UPX
+        if: runner.os != 'macOS'  # UPX не поддерживает macOS ARM, но можно пропустить
+        run: |
+          if command -v upx > /dev/null; then
+            find target/release -type f -executable -exec upx {} \; 2>/dev/null || true
+            find target-nogui/release -type f -executable -exec upx {} \; 2>/dev/null || true
+          fi
+
+      # --- Подготовка переменных ---
+      - name: Set arch variables
+        id: arch
+        shell: bash
+        run: |
+          case "${{ runner.os }}" in
+            "Linux")   ARCH="linux-amd64" ;;
+            "Windows") ARCH="windows-amd64" ;;
+            "macOS")   ARCH="darwin-amd64" ;;
+            *)         echo "Unknown OS" && exit 1 ;;
+          esac
+          echo "BIN_ARCH=$ARCH" >> $GITHUB_ENV
+          echo "BIN_ARCH_NOGUI=${ARCH}-nogui" >> $GITHUB_ENV
+          echo "BIN_ARCH_EDGE=${ARCH}-edge" >> $GITHUB_ENV
+
+      - name: Set paths and filenames
+        shell: bash
+        run: |
+          # GUI
+          echo "BIN_PATH=${{ runner.os == 'Windows' && 'target/release/ruvname.exe' || 'target/release/ruvname' }}" >> $GITHUB_ENV
+          echo "ZIP_NAME=ruvname-${{ env.BIN_ARCH }}-${{ needs.get_version.outputs.version }}.zip" >> $GITHUB_ENV
+
+          # NoGUI
+          echo "BIN_PATH_NOGUI=${{ runner.os == 'Windows' && 'target-nogui/release/ruvname.exe' || 'target-nogui/release/ruvname' }}" >> $GITHUB_ENV
+          echo "ZIP_NAME_NOGUI=ruvname-${{ env.BIN_ARCH_NOGUI }}-${{ needs.get_version.outputs.version }}.zip" >> $GITHUB_ENV
+
+          # Edge (только Windows)
+          if [ "${{ runner.os }}" = "Windows" ]; then
+            echo "BIN_PATH_EDGE=target/release/ruvname.exe" >> $GITHUB_ENV
+            echo "ZIP_NAME_EDGE=ruvname-${{ env.BIN_ARCH_EDGE }}-${{ needs.get_version.outputs.version }}.zip" >> $GITHUB_ENV
+          fi
+
+      # --- Архивация ---
+      - name: Package GUI binary
+        uses: papeloto/action-zip@v1
+        with:
+          files: ${{ env.BIN_PATH }} ruvname.toml README.md LICENSE adblock.txt
+          dest: ${{ env.ZIP_NAME }}
+
+      - name: Package NoGUI binary
+        uses: papeloto/action-zip@v1
+        with:
+          files: ${{ env.BIN_PATH_NOGUI }} ruvname.toml README.md LICENSE adblock.txt
+          dest: ${{ env.ZIP_NAME_NOGUI }}
+
+      - name: Package Edge binary
+        if: runner.os == 'Windows'
+        uses: papeloto/action-zip@v1
+        with:
+          files: ${{ env.BIN_PATH_EDGE }} ruvname.toml README.md LICENSE adblock.txt
+          dest: ${{ env.ZIP_NAME_EDGE }}
+
+      # --- Загрузка в релиз ---
+      - name: Upload GUI binary
+        uses: actions/upload-release-asset@v4
+        env:
+          GITHUB_TOKEN: ${{ secrets.PAT }}
+        with:
+          upload_url: ${{ needs.create_release.outputs.upload_url }}
+          asset_path: ${{ env.ZIP_NAME }}
+          asset_name: ${{ env.ZIP_NAME }}
+          asset_content_type: application/zip
+
+      - name: Upload NoGUI binary
+        uses: actions/upload-release-asset@v4
+        env:
+          GITHUB_TOKEN: ${{ secrets.PAT }}
+        with:
+          upload_url: ${{ needs.create_release.outputs.upload_url }}
+          asset_path: ${{ env.ZIP_NAME_NOGUI }}
+          asset_name: ${{ env.ZIP_NAME_NOGUI }}
+          asset_content_type: application/zip
+
+      - name: Upload Edge binary
+        if: runner.os == 'Windows'
+        uses: actions/upload-release-asset@v4
+        env:
+          GITHUB_TOKEN: ${{ secrets.PAT }}
+        with:
+          upload_url: ${{ needs.create_release.outputs.upload_url }}
+          asset_path: ${{ env.ZIP_NAME_EDGE }}
+          asset_name: ${{ env.ZIP_NAME_EDGE }}
+          asset_content_type: application/zip
