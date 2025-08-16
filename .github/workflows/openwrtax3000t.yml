@@ -1,0 +1,180 @@
+name: 📦 OpenWrt IPK — Xiaomi Mi AX3000T
+
+on:
+  push:
+    tags:
+      - "v[0-9]+.[0-9]+.[0-9]+"
+
+env:
+  PKGNAME: ruvname
+  PKGVERSION: ${{ github.ref_name }}
+  TARGET: aarch64-unknown-linux-musl
+  OPENWRT_ARCH: aarch64_cortex-a53
+  OPENWRT_ABI: musl
+
+jobs:
+  build-openwrt:
+    name: Build .ipk for Xiaomi Mi AX3000T (OpenWrt 24.10)
+    runs-on: ubuntu-22.04
+    permissions:
+      contents: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Установка зависимостей
+        run: |
+          sudo apt update
+          sudo apt install -y \
+            upx \
+            build-essential \
+            fakeroot \
+            git \
+            wget \
+            libssl-dev \
+            libglib2.0-dev \
+            musl-tools \
+            qemu-user-static
+          cargo install cross --git https://github.com/cross-rs/cross
+
+      - name: Сборка бинарника для OpenWrt (aarch64)
+        run: |
+          set -ex
+          cross build --target ${{ env.TARGET }} --release --no-default-features --features="doh"
+          upx --best --lzma target/${{ env.TARGET }}/release/ruvname
+
+      - name: Подготовка структуры .ipk
+        run: |
+          set -ex
+          mkdir -p openwrt-package/{usr/bin,etc/{init.d,config},root,CONTROL}
+          cp target/${{ env.TARGET }}/release/ruvname openwrt-package/usr/bin/
+          chmod +x openwrt-package/usr/bin/ruvname
+          cp ruvname.toml openwrt-package/etc/config/ruvname
+
+      - name: Создание init.d скрипта
+        run: |
+          cat <<'INIT_EOF' > openwrt-package/etc/init.d/ruvname
+#!/bin/sh /etc/rc.common
+
+START=99
+USE_PROCD=1
+
+start_service() {
+  procd_open_instance
+  procd_set_param command /usr/bin/ruvname
+  procd_set_param respawn
+  procd_set_param file /etc/config/ruvname
+  procd_close_instance
+}
+
+reload_service() {
+  stop
+  start
+}
+
+stop_service() {
+  killall ruvname
+}
+INIT_EOF
+          chmod +x openwrt-package/etc/init.d/ruvname
+
+      - name: Создание файлов контроля пакета
+        run: |
+          set -ex
+          cat <<'CONTROL_EOF' > openwrt-package/CONTROL/control
+Package: ${{ env.PKGNAME }}
+Version: ${{ env.PKGVERSION }}
+Architecture: ${{ env.OPENWRT_ARCH }}
+Maintainer: ruvcoindev <admin@ruv.name>
+Section: network
+Priority: optional
+Description: Decentralized DNS on Blockchain for OpenWrt
+ RUVNAME — децентрализованная система доменных имён на блокчейне.
+ Поддерживает: .ruv, .mesh, .node, .p2p, .tamb, .tmb, .dweb, .dht, .hub
+CONTROL_EOF
+
+          cat <<'POSTINST_EOF' > openwrt-package/CONTROL/postinst
+#!/bin/sh
+[ -x "/etc/init.d/ruvname" ] && {
+  /etc/init.d/ruvname enable
+  /etc/init.d/ruvname start
+}
+exit 0
+POSTINST_EOF
+          chmod +x openwrt-package/CONTROL/postinst
+
+          cat <<'PRERM_EOF' > openwrt-package/CONTROL/prerm
+#!/bin/sh
+[ -x "/etc/init.d/ruvname" ] && {
+  /etc/init.d/ruvname stop
+  /etc/init.d/ruvname disable
+}
+exit 0
+PRERM_EOF
+          chmod +x openwrt-package/CONTROL/prerm
+
+      - name: Упаковка в .ipk
+        run: |
+          set -ex
+          mkdir -p ipk-output
+          (cd openwrt-package && find . -type f -not -path './CONTROL*' -print0 | xargs -0 md5sum > ./CONTROL/md5sums)
+          (cd openwrt-package && find . | sort | tar --owner=0 --group=0 --numeric-owner -czf ../ipk-output/ruvname_${{ env.PKGVERSION }}_${{ env.OPENWRT_ARCH }}.ipk -T -)
+
+      - name: Загрузка артефакта
+        uses: actions/upload-artifact@v3
+        with:
+          name: ruvname-ipk
+          path: ipk-output/
+          retention-days: 3
+
+  create_release:
+    needs: build-openwrt
+    runs-on: ubuntu-22.04
+    permissions:
+      contents: write
+
+    steps:
+      - uses: actions/download-artifact@v3
+        with:
+          name: ruvname-ipk
+          path: ipk-output
+
+      - name: Создание релиза
+        id: create_release
+        uses: softprops/action-gh-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: ${{ github.ref_name }}
+          name: RUVNAME ${{ github.ref_name }} for OpenWrt
+          body: |
+            ## 📦 RUVNAME для OpenWrt 24.10
+            
+            ### Совместимость
+            - Архитектура: ${{ env.OPENWRT_ARCH }}
+            - ABI: ${{ env.OPENWRT_ABI }}
+            - Тестировано на Xiaomi Mi AX3000T (mt7981)
+            
+            ### Установка
+            ```bash
+            # Загрузка пакета
+            scp ruvname_${{ env.PKGVERSION }}_${{ env.OPENWRT_ARCH }}.ipk root@192.168.1.1:/tmp/
+            
+            # Установка
+            opkg install /tmp/ruvname_${{ env.PKGVERSION }}_${{ env.OPENWRT_ARCH }}.ipk
+            
+            # Проверка
+            /etc/init.d/ruvname status
+            ```
+          draft: false
+          prerelease: false
+
+      - name: Загрузка .ipk в релиз
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: ipk-output/ruvname_${{ env.PKGVERSION }}_${{ env.OPENWRT_ARCH }}.ipk
+          asset_name: ruvname_${{ env.PKGVERSION }}_${{ env.OPENWRT_ARCH }}.ipk
+          asset_content_type: application/x-debian-package
