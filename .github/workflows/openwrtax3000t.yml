@@ -56,8 +56,8 @@ jobs:
           cat > openwrt-package/etc/init.d/ruvname << 'EOF'
 #!/bin/sh /etc/rc.common
 
-START=99
-USE_PROCD=1
+  START=99
+  USE_PROCD=1
 
 start_service() {
     procd_open_instance
