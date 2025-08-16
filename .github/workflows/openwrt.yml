@@ -1,4 +1,4 @@
-name: 📦 OpenWrt IPK — Xiaomi Mi AX3000T
+name: 📦 OpenWrt IPK — Xiaomi Mi AX3000T + LuCI
 
 on:
   push:
@@ -13,6 +13,7 @@ env:
   OPENWRT_ABI: glibc
 
 jobs:
+  # === 1. Сборка ruvname.ipk и luci-app-ruvname.ipk ===
   build-openwrt:
     name: Build .ipk for Xiaomi Mi AX3000T (OpenWrt 24.10)
     runs-on: ubuntu-22.04
@@ -45,7 +46,8 @@ jobs:
           cross build --target ${{ env.TARGET }} --release --no-default-features --features="doh"
           upx --best --lzma target/${{ env.TARGET }}/release/ruvname
 
-      - name: Подготовка структуры .ipk
+      # === Подготовка ruvname.ipk ===
+      - name: Подготовка структуры ruvname.ipk
         run: |
           mkdir -p openwrt-package
           cp target/${{ env.TARGET }}/release/ruvname openwrt-package/ruvname
@@ -97,7 +99,7 @@ EOF
           cp openwrt-package/ruvname openwrt-package/usr/bin/ruvname
           chmod +x openwrt-package/usr/bin/ruvname
 
-      - name: Создание control
+      - name: Создание control для ruvname.ipk
         run: |
           mkdir -p openwrt-package/CONTROL
           cat > openwrt-package/CONTROL/control << EOF
@@ -112,7 +114,7 @@ Description: Decentralized DNS on Blockchain for OpenWrt
  Поддерживает: .ruv, .mesh, .node, .p2p, .tamb, .tmb, .dweb, .dht, .hub
 EOF
 
-      - name: postinst
+      - name: postinst для ruvname.ipk
         run: |
           cat > openwrt-package/CONTROL/postinst << 'EOF'
 #!/bin/sh
@@ -122,7 +124,7 @@ exit 0
 EOF
           chmod +x openwrt-package/CONTROL/postinst
 
-      - name: prerm
+      - name: prerm для ruvname.ipk
         run: |
           cat > openwrt-package/CONTROL/prerm << 'EOF'
 #!/bin/sh
@@ -132,7 +134,7 @@ exit 0
 EOF
           chmod +x openwrt-package/CONTROL/prerm
 
-      - name: Упаковка в .ipk
+      - name: Упаковка ruvname.ipk
         run: |
           mkdir -p ipk-output
           (cd openwrt-package && find . -type f -not -path './CONTROL*' | xargs md5sum > ./CONTROL/md5sums)
@@ -140,11 +142,154 @@ EOF
           (cd openwrt-package && find . | sort | tar --owner=0 --group=0 --numeric-owner -czf ../ruvname_${{ env.PKGVERSION }}_${{ env.OPENWRT_ARCH }}_${{ env.OPENWRT_ABI }}-1.ipk -T -)
           mv ruvname_${{ env.PKGVERSION }}_${{ env.OPENWRT_ARCH }}_${{ env.OPENWRT_ABI }}-1.ipk ipk-output/
 
-      - name: Загрузка артефакта
+      # === Сборка luci-app-ruvname.ipk ===
+      - name: Подготовка luci-app-ruvname.ipk
+        run: |
+          mkdir -p luci-app-ruvname/ipk
+          mkdir -p luci-app-ruvname/ipk/luasrc/controller
+          mkdir -p luci-app-ruvname/ipk/luasrc/model/cbi
+          mkdir -p luci-app-ruvname/ipk/luasrc/view/ruvname
+          mkdir -p luci-app-ruvname/ipk/root/www/luci-static/ruvname
+
+      - name: Создание luci controller
+        run: |
+          cat > luci-app-ruvname/ipk/luasrc/controller/ruvname.lua << 'EOF'
+module("luci.controller.ruvname", package.seeall)
+
+function index()
+    if not nixio.fs.access("/etc/config/ruvname") then
+        return
+    end
+
+    entry({"admin", "services", "ruvname"}, cbi("ruvname"), _("RUVNAME"), 50)
+        .title = _("RUVNAME")
+        .index = true
+
+    entry({"admin", "services", "ruvname", "status"}, call("action_status"), _("Status"), 10)
+end
+
+function action_status()
+    local sys = require "luci.sys"
+    local http = require "luci.http"
+
+    local running = sys.call("pgrep ruvname > /dev/null") == 0
+    local status = {
+        running = running,
+        version = sys.exec("ruvname -v 2>/dev/null | head -n1"),
+        peers = tonumber(sys.exec("grep -o 'peer_connected' /tmp/log/ruvname.log | wc -l")) or 0,
+        domains = tonumber(sys.exec("grep -o 'domain_registered' /tmp/log/ruvname.log | wc -l")) or 0
+    }
+
+    http.prepare_content("application/json")
+    http.write_json(status)
+end
+EOF
+
+      - name: Создание luci model (CBI)
+        run: |
+          cat > luci-app-ruvname/ipk/luasrc/model/cbi/ruvname.lua << 'EOF'
+local fs = require "nixio.fs"
+local uci = require "luci.model.uci".cursor()
+
+m = Map("ruvname", translate("RUVNAME Settings"),
+    translate("Configure decentralized DNS on .ruv, .mesh, .node, .p2p, .tamb, .tmb, .dweb, .dht, .hub"))
+
+s = m:section(NamedSection, "ruvname", "ruvname", translate("General Settings"))
+s.addremove = false
+
+o = s:option(Flag, "enabled", translate("Enabled"))
+o.rmempty = false
+o.enabled = "1"
+o.disabled = "0"
+
+o = s:option(Value, "listen", translate("DNS Listen"))
+o.placeholder = "127.0.0.1:5311"
+o.datatype = "string"
+
+o = s:option(Value, "forwarders", translate("Upstream DNS"))
+o.placeholder = "https://dns.adguard.com/dns-query"
+o.datatype = "list"
+
+o = s:option(Value, "peers", translate("P2P Peers"))
+o.placeholder = "[fa00:4715:66fa:2bd:3032:b5d1:e86f:239c]:6890"
+o.datatype = "list"
+
+return m
+EOF
+
+      - name: Создание luci view (status.htm)
+        run: |
+          cat > luci-app-ruvname/ipk/luasrc/view/ruvname/status.htm << 'EOF'
+<%+header%>
+<h2><%:RUVNAME Status%></h2>
+
+<div id="status">
+    <p><%:Loading status...%></p>
+</div>
+
+<script type="text/javascript">
+    XHR.poll(5, '<%=url("admin/services/ruvname/status")%>', null, function(x) {
+        var s = document.getElementById('status');
+        if (x && x.responseText) {
+            var data = JSON.parse(x.responseText);
+            s.innerHTML = `
+                <strong>Status:</strong> ${data.running ? 'Running' : 'Stopped'}<br>
+                <strong>Version:</strong> ${data.version}<br>
+                <strong>Peers:</strong> ${data.peers}<br>
+                <strong>Domains:</strong> ${data.domains}<br>
+            `;
+        }
+    });
+</script>
+
+<%+footer%>
+EOF
+
+      - name: Создание control для luci-app-ruvname.ipk
+        run: |
+          mkdir -p luci-app-ruvname/ipk/CONTROL
+          cat > luci-app-ruvname/ipk/CONTROL/control << EOF
+Package: luci-app-ruvname
+Version: ${{ env.PKGVERSION }}
+Architecture: all
+Maintainer: ruvcoindev <admin@ruv.name>
+Section: luci
+Priority: optional
+Title: LuCI interface for RUVNAME
+Description: LuCI interface for RUVNAME - Decentralized DNS on Blockchain
+Depends: ruvname, luci-base
+EOF
+
+      - name: postinst для luci-app
+        run: |
+          cat > luci-app-ruvname/ipk/CONTROL/postinst << 'EOF'
+#!/bin/sh
+/etc/init.d/uhttpd restart
+exit 0
+EOF
+          chmod +x luci-app-ruvname/ipk/CONTROL/postinst
+
+      - name: prerm для luci-app
+        run: |
+          cat > luci-app-ruvname/ipk/CONTROL/prerm << 'EOF'
+#!/bin/sh
+/etc/init.d/uhttpd restart
+exit 0
+EOF
+          chmod +x luci-app-ruvname/ipk/CONTROL/prerm
+
+      - name: Упаковка luci-app-ruvname.ipk
+        run: |
+          (cd luci-app-ruvname/ipk && find . | sort | md5sum > CONTROL/md5sums)
+          (cd luci-app-ruvname/ipk && find . | sort | tar --owner=0 --group=0 --numeric-owner -czf ../luci-app-ruvname_${{ env.PKGVERSION }}_all.ipk -T -)
+          mv luci-app-ruvname_${{ env.PKGVERSION }}_all.ipk ipk-output/
+
+      - name: Загрузка артефактов
         uses: actions/upload-artifact@v3
         with:
           path: ipk-output/
 
+  # === 2. Создание релиза и загрузка .ipk ===
   create_release:
     needs: build-openwrt
     runs-on: ubuntu-22.04
@@ -169,30 +314,35 @@ EOF
             ## 📦 RUVNAME для OpenWrt 24.10
 
             Этот релиз включает:
-            - `.ipk` пакет для OpenWrt 24.10
-            - Совместим с **Xiaomi Mi AX3000T** (mt7981, aarch64_cortex-a53)
+            - `ruvname-openwrt-24.10-xiaomi-ax3000t_*.ipk` — основной пакет
+            - `luci-app-ruvname_*.ipk` — веб-интерфейс в LuCI
 
             ### 📥 Установка на роутер
 
             ```bash
-            # Скопируйте .ipk на роутер (через scp)
-            scp ruvname_*.ipk root@192.168.1.1:/tmp/
+            # Скопируйте пакеты на роутер
+            scp ruvname-openwrt-*.ipk luci-app-ruvname_*.ipk root@192.168.1.1:/tmp/
 
-            # Установите пакет
-            opkg install /tmp/ruvname_*.ipk
+            # Установите
+            opkg install /tmp/ruvname-openwrt-*.ipk
+            opkg install /tmp/luci-app-ruvname_*.ipk
 
             # Включите сервис
             /etc/init.d/ruvname enable
             /etc/init.d/ruvname start
             ```
 
+            ### 🌐 LuCI интерфейс
+            После установки откройте:
+            **LuCI → Services → RUVNAME**
+
             ### 🛠 Конфигурация
             - Конфиг: `/etc/config/ruvname`
-            - Логи: смотрите в `logread -f`
+            - Логи: `logread | grep ruvname`
           draft: false
           prerelease: false
 
-      - name: Загрузка .ipk в релиз
+      - name: Загрузка ruvname.ipk
         uses: actions/upload-release-asset@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -200,4 +350,14 @@ EOF
           upload_url: ${{ steps.create_release.outputs.upload_url }}
           asset_path: ipk-output/ruvname_${{ env.PKGVERSION }}_${{ env.OPENWRT_ARCH }}_${{ env.OPENWRT_ABI }}-1.ipk
           asset_name: ruvname-openwrt-24.10-xiaomi-ax3000t_${{ env.PKGVERSION }}_${{ env.OPENWRT_ARCH }}.ipk
+          asset_content_type: application/x-debian-package
+
+      - name: Загрузка luci-app-ruvname.ipk
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: ipk-output/luci-app-ruvname_${{ env.PKGVERSION }}_all.ipk
+          asset_name: luci-app-ruvname_${{ env.PKGVERSION }}.ipk
           asset_content_type: application/x-debian-package
