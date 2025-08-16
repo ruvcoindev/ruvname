@@ -21,7 +21,7 @@ pub struct Peer {
     reconnects: u32,
     received_block: u64,
     sent_height: u64,
-    cipher: Option<Chacha>
+    cipher: Option<Chacha>,
 }
 
 impl Peer {
@@ -39,7 +39,7 @@ impl Peer {
             reconnects: 0,
             received_block: 0,
             sent_height: 0,
-            cipher: None
+            cipher: None,
         }
     }
 
@@ -54,7 +54,7 @@ impl Peer {
     pub fn get_nonce(&self) -> &[u8] {
         match &self.cipher {
             None => &crate::crypto::ZERO_NONCE,
-            Some(chacha) => chacha.get_nonce()
+            Some(chacha) => chacha.get_nonce(),
         }
     }
 
@@ -203,7 +203,7 @@ impl Display for Peer {
             State::SendLoop => "SendLoop",
             State::Loop => "Loop",
             State::Twin => "Twin",
-            State::Offline { .. } => "Offline"
+            State::Offline { .. } => "Offline",
         };
         write!(f, "{:?} {}", &self.addr, state)
     }

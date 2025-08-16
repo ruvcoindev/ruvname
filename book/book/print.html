@@ -220,15 +220,112 @@ bootstraps = ["9.9.9.9:53", "94.140.14.14:53"]
 threads = 0
 lower = true
 </code></pre>
-<div style="break-before: page; page-break-before: always;"></div><h1 id="api"><a class="header" href="#api">API</a></h1>
-<div style="break-before: page; page-break-before: always;"></div><h1 id="dns-api"><a class="header" href="#dns-api">DNS API</a></h1>
-<div style="break-before: page; page-break-before: always;"></div><h1 id="Домены"><a class="header" href="#Домены">Домены</a></h1>
-<div style="break-before: page; page-break-before: always;"></div><h1 id="Майнинг"><a class="header" href="#Майнинг">Майнинг</a></h1>
-<div style="break-before: page; page-break-before: always;"></div><h1 id="Ключи"><a class="header" href="#Ключи">Ключи</a></h1>
-<div style="break-before: page; page-break-before: always;"></div><h1 id="Блокчейн"><a class="header" href="#Блокчейн">Блокчейн</a></h1>
-<div style="break-before: page; page-break-before: always;"></div><h1 id="Примеры"><a class="header" href="#Примеры">Примеры</a></h1>
+<div style="break-before: page; page-break-before: always;"></div><h1 id="-api-Документация"><a class="header" href="#-api-Документация">📚 API Документация</a></h1>
+<ul>
+<li><a href="api/dns.html">DNS</a></li>
+<li><a href="api/domains.html">Домены</a></li>
+<li><a href="api/mining.html">Майнинг</a></li>
+</ul>
+<div style="break-before: page; page-break-before: always;"></div><h2 id="-dns-api"><a class="header" href="#-dns-api">🌐 DNS API</a></h2>
+<h3 id="get-resolve"><a class="header" href="#get-resolve"><code>GET /resolve</code></a></h3>
+<p>Разрешает доменное имя.</p>
+<h4 id="Пример-1"><a class="header" href="#Пример-1">Пример</a></h4>
+<pre><code class="language-http">GET /resolve?name=ya.ru.bit&amp;type=A
+</code></pre>
+<div style="break-before: page; page-break-before: always;"></div><p>cat &gt; book/src/api/domains.md &lt;&lt; 'EOF'</p>
+<h2 id="-Домены-api"><a class="header" href="#-Домены-api">🔐 Домены API</a></h2>
+<h3 id="post-domain"><a class="header" href="#post-domain"><code>POST /domain</code></a></h3>
+<p>Регистрирует новый домен (запускает майнинг).</p>
+<h4 id="Тело-запроса"><a class="header" href="#Тело-запроса">Тело запроса</a></h4>
+<pre><code class="language-json">{
+  "name": "mydomain",
+  "zone": "ruv",
+  "data": {
+    "records": [
+      {
+        "type": "A",
+        "domain": "mydomain.ruv",
+        "addr": "127.0.0.1",
+        "ttl": 300
+      }
+    ],
+    "info": "My personal domain",
+    "contacts": [
+      {
+        "name": "email",
+        "value": "me@example.com"
+      }
+    ]
+  }
+}
+</code></pre>
+<div style="break-before: page; page-break-before: always;"></div><p>cat &gt; book/src/api/mining.md &lt;&lt; 'EOF'</p>
+<h2 id="-Майнинг-api"><a class="header" href="#-Майнинг-api">⛏️ Майнинг API</a></h2>
+<h3 id="post-start_mining"><a class="header" href="#post-start_mining"><code>POST /start_mining</code></a></h3>
+<p>Запускает майнинг доменов.</p>
+<h4 id="Тело-опционально"><a class="header" href="#Тело-опционально">Тело (опционально)</a></h4>
+<pre><code class="language-json">{
+  "threads": 4
+}
+</code></pre>
+<div style="break-before: page; page-break-before: always;"></div><p>cat &gt; book/src/api/keys.md &lt;&lt; 'EOF'</p>
+<h2 id="-Ключи-api"><a class="header" href="#-Ключи-api">🔑 Ключи API</a></h2>
+<h3 id="post-new_key"><a class="header" href="#post-new_key"><code>POST /new_key</code></a></h3>
+<p>Создаёт новый кошелёк.</p>
+<h4 id="Ответ"><a class="header" href="#Ответ">Ответ</a></h4>
+<pre><code class="language-json">{
+  "status": "key_created",
+  "file": "keys/key1.json",
+  "address": "a1b2c3d4e5..."
+}
+</code></pre>
+<div style="break-before: page; page-break-before: always;"></div><p>cat &gt; book/src/api/blocks.md &lt;&lt; 'EOF'</p>
+<h2 id="-Блокчейн-api"><a class="header" href="#-Блокчейн-api">📦 Блокчейн API</a></h2>
+<h3 id="get-blocks"><a class="header" href="#get-blocks"><code>GET /blocks</code></a></h3>
+<p>Возвращает последние блоки.</p>
+<h4 id="Параметры"><a class="header" href="#Параметры">Параметры</a></h4>
+<ul>
+<li><code>limit</code> (int, опционально) — количество, по умолчанию 10</li>
+<li><code>offset</code> (int, опционально) — смещение</li>
+</ul>
+<h4 id="Ответ-1"><a class="header" href="#Ответ-1">Ответ</a></h4>
+<pre><code class="language-json">[
+  {
+    "height": 150,
+    "hash": "a1b2c3...",
+    "timestamp": 1723700000,
+    "tx_count": 1,
+    "difficulty": 24
+  }
+]
+</code></pre>
+<div style="break-before: page; page-break-before: always;"></div><h2 id="Примеры"><a class="header" href="#Примеры">Примеры</a></h2>
+<ul>
+<li><a href="examples/examples/python_client.py">Python клиент</a> — скачайте</li>
+<li><a href="examples/examples/js_client.html">JavaScript клиент</a> — откройте в браузере</li>
+</ul>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="python"><a class="header" href="#python">Python</a></h1>
-<div style="break-before: page; page-break-before: always;"></div><h1 id="javascript"><a class="header" href="#javascript">JavaScript</a></h1>
+<div style="break-before: page; page-break-before: always;"></div><h1 id="-javascript-Пример"><a class="header" href="#-javascript-Пример">🟨 JavaScript Пример</a></h1>
+<pre><code class="language-html">&lt;!DOCTYPE html&gt;
+&lt;html&gt;
+&lt;head&gt;
+  &lt;title&gt;RUVNAME JS Client&lt;/title&gt;
+&lt;/head&gt;
+&lt;body&gt;
+  &lt;button onclick="getStatus()"&gt;Получить статус&lt;/button&gt;
+  &lt;pre id="output"&gt;...&lt;/pre&gt;
+  &lt;script&gt;
+    function getStatus() {
+      fetch("http://127.0.0.1:5311/status")
+        .then(r =&gt; r.json())
+        .then(data =&gt; {
+          document.getElementById("output").textContent = JSON.stringify(data, null, 2);
+        });
+    }
+  &lt;/script&gt;
+&lt;/body&gt;
+&lt;/html&gt;
+</code></pre>
 <div style="break-before: page; page-break-before: always;"></div><h2 id="-Разработка"><a class="header" href="#-Разработка">🛠 Разработка</a></h2>
 <h3 id="Сборка"><a class="header" href="#Сборка">Сборка</a></h3>
 <pre><code class="language-bash">cargo build --release --features="webgui"

@@ -22,10 +22,7 @@ pub fn to_hex(buf: &[u8]) -> String {
 }
 
 pub fn from_hex(string: &str) -> Result<Vec<u8>, num::ParseIntError> {
-    split_n(string.trim(), 2)
-        .iter()
-        .map(|b| u8::from_str_radix(b, 16))
-        .collect()
+    split_n(string.trim(), 2).iter().map(|b| u8::from_str_radix(b, 16)).collect()
 }
 
 pub fn check_domain(name: &str, allow_dots: bool) -> bool {
@@ -84,9 +81,7 @@ pub fn get_domain_zone(domain: &str) -> String {
 }
 
 fn split_n(s: &str, n: usize) -> Vec<&str> {
-    (0..=(s.len() - n + 1) / 2)
-        .map(|i| &s[2 * i..2 * i + n])
-        .collect()
+    (0..=(s.len() - n + 1) / 2).map(|i| &s[2 * i..2 * i + n]).collect()
 }
 
 /// Generates random string of given length

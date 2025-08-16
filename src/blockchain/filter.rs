@@ -5,16 +5,16 @@ use std::sync::{Arc, Mutex};
 use log::{debug, error, info, trace, warn};
 
 use crate::blockchain::transaction::DomainData;
+use crate::dns::client::{DnsClient, DnsNetworkClient};
 use crate::dns::filter::DnsFilter;
 use crate::dns::protocol::{DnsPacket, DnsQuestion, DnsRecord, QueryType, ResultCode, TransientTtl};
 use crate::Context;
-use crate::dns::client::{DnsClient, DnsNetworkClient};
 
 const NAME_SERVER: &str = "ns.ruvcha.in";
 const SERVER_ADMIN: &str = "admin.ruvcha.in";
 
 pub struct BlockchainFilter {
-    context: Arc<Mutex<Context>>
+    context: Arc<Mutex<Context>>,
 }
 
 impl BlockchainFilter {
@@ -32,7 +32,7 @@ impl BlockchainFilter {
             retry: 300,
             expire: 604800,
             minimum: 60,
-            ttl: TransientTtl(60)
+            ttl: TransientTtl(60),
         });
     }
 
@@ -94,7 +94,7 @@ impl BlockchainFilter {
                     DnsRecord::NS { domain, host, .. } if domain == "@" => {
                         hosts.push(host.to_owned());
                     }
-                    _ => ()
+                    _ => (),
                 }
             }
         }
@@ -123,7 +123,7 @@ impl BlockchainFilter {
                         }
                     }
                 }
-                _ => ()
+                _ => (),
             }
         }
 
@@ -188,7 +188,7 @@ impl DnsFilter for BlockchainFilter {
                     Err(_) => {
                         return None;
                     }
-                    Ok(data) => data
+                    Ok(data) => data,
                 };
 
                 // Check if this domain has NS records and needs to resolve all records through them
@@ -211,10 +211,12 @@ impl DnsFilter for BlockchainFilter {
                             | DnsRecord::MX { domain, .. }
                             | DnsRecord::UNKNOWN { domain, .. }
                             | DnsRecord::SOA { domain, .. }
-                            | DnsRecord::TXT { domain, .. } if (domain == "@" && subdomain.is_empty()) || domain == &subdomain => {
+                            | DnsRecord::TXT { domain, .. }
+                                if (domain == "@" && subdomain.is_empty()) || domain == &subdomain =>
+                            {
                                 *domain = String::from(qname);
                             }
-                            _ => ()
+                            _ => (),
                         }
 
                         match record.get_domain() {
@@ -253,7 +255,7 @@ impl DnsFilter for BlockchainFilter {
                                 | DnsRecord::TXT { domain, .. } => {
                                     *domain = String::from(qname);
                                 }
-                                _ => ()
+                                _ => (),
                             }
                             answers.push(record.clone());
                         }

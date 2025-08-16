@@ -5,7 +5,7 @@ use uuid::Uuid;
 #[derive(Default)]
 pub struct Bus<T> {
     #[allow(clippy::type_complexity)]
-    listeners: HashMap<Uuid, Box<dyn FnMut(&Uuid, T) -> bool + Send + Sync>>
+    listeners: HashMap<Uuid, Box<dyn FnMut(&Uuid, T) -> bool + Send + Sync>>,
 }
 
 impl<T: Clone> Bus<T> {
@@ -13,7 +13,10 @@ impl<T: Clone> Bus<T> {
         Bus { listeners: HashMap::new() }
     }
 
-    pub fn register<F>(&mut self, closure: F) -> Uuid where F: FnMut(&Uuid, T) -> bool + Send + Sync + 'static {
+    pub fn register<F>(&mut self, closure: F) -> Uuid
+    where
+        F: FnMut(&Uuid, T) -> bool + Send + Sync + 'static,
+    {
         let uuid = Uuid::new_v4();
         self.listeners.insert(uuid, Box::new(closure));
         uuid
@@ -24,9 +27,7 @@ impl<T: Clone> Bus<T> {
     }
 
     pub fn post(&mut self, event: T) {
-        self.listeners.retain(|uuid, closure| {
-            closure(uuid, event.clone())
-        });
+        self.listeners.retain(|uuid, closure| closure(uuid, event.clone()));
     }
 }
 

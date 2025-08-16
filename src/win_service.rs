@@ -1,17 +1,21 @@
-use std::ffi::{OsStr, OsString};
-use std::path::PathBuf;
-use std::sync::{Arc, mpsc, Mutex};
-use std::thread;
-use std::time::Duration;
 use lazy_static::lazy_static;
 use log::{error, info};
+use std::ffi::{OsStr, OsString};
+use std::path::PathBuf;
+use std::sync::{mpsc, Arc, Mutex};
+use std::thread;
+use std::time::Duration;
 
-use windows_service::{define_windows_service, service::{
-    ServiceControl, ServiceExitCode, ServiceState, ServiceStatus, ServiceType,
-}, service_control_handler::ServiceControlHandlerResult, service_dispatcher, Result, service_control_handler};
-use windows_service::service::ServiceControlAccept;
-use ruvname::{Context, Settings};
 use crate::start_services;
+use ruvname::{Context, Settings};
+use windows_service::service::ServiceControlAccept;
+use windows_service::{
+    define_windows_service,
+    service::{ServiceControl, ServiceExitCode, ServiceState, ServiceStatus, ServiceType},
+    service_control_handler,
+    service_control_handler::ServiceControlHandlerResult,
+    service_dispatcher, Result,
+};
 
 // Define the service entry point and its behavior
 define_windows_service!(ffi_service_main, ruvname_service_main);
@@ -118,8 +122,8 @@ fn run_service_logic() -> Result<()> {
 
 // Function to install a Windows service
 pub fn install_service(service_name: &str, bin_path: &str) {
-    use windows_service::service_manager::*;
     use windows_service::service::*;
+    use windows_service::service_manager::*;
     let error = "Error creating service. Try to start with admin rights";
     let manager_access = ServiceManagerAccess::CONNECT | ServiceManagerAccess::CREATE_SERVICE;
     let manager = ServiceManager::local_computer(None::<&str>, manager_access).expect(error);
@@ -142,14 +146,14 @@ pub fn install_service(service_name: &str, bin_path: &str) {
     thread::sleep(Duration::from_secs(1));
     match my_service.start(&[OsStr::new("--service")]) {
         Ok(_) => println!("Service successfully installed and started"),
-        Err(e) => println!("Error starting service: {}", e)
+        Err(e) => println!("Error starting service: {}", e),
     }
 }
 
 // Function to uninstall a Windows service
 pub fn uninstall_service(service_name: &str) {
-    use windows_service::service_manager::*;
     use windows_service::service::*;
+    use windows_service::service_manager::*;
     let error = "Error creating service. Try to start with admin rights";
     let manager = ServiceManager::local_computer(None::<&str>, ServiceManagerAccess::CONNECT).expect(error);
     let service_access = ServiceAccess::QUERY_STATUS | ServiceAccess::STOP | ServiceAccess::DELETE;
@@ -159,6 +163,6 @@ pub fn uninstall_service(service_name: &str) {
             thread::sleep(Duration::from_secs(2));
             let _ = service.delete();
         }
-        Err(e) => println!("Error opening service. Try running with admin rights: {}", e)
+        Err(e) => println!("Error opening service. Try running with admin rights: {}", e),
     }
 }

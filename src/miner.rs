@@ -22,7 +22,7 @@ use crate::{setup_miner_thread, Block, Bytes, Context, Keystore};
 pub struct MineJob {
     start: i64,
     block: Block,
-    keystore: Keystore
+    keystore: Keystore,
 }
 
 impl MineJob {
@@ -42,7 +42,7 @@ impl MineJob {
 #[derive(Clone, Debug)]
 pub struct MinerState {
     pub mining: bool,
-    pub full: bool
+    pub full: bool,
 }
 
 pub struct Miner {
@@ -50,7 +50,7 @@ pub struct Miner {
     jobs: Arc<Mutex<Vec<MineJob>>>,
     running: Arc<AtomicBool>,
     mining: Arc<AtomicBool>,
-    cond_var: Arc<Condvar>
+    cond_var: Arc<Condvar>,
 }
 
 impl Miner {
@@ -60,7 +60,7 @@ impl Miner {
             jobs: Arc::new(Mutex::new(Vec::new())),
             running: Arc::new(AtomicBool::new(false)),
             mining: Arc::new(AtomicBool::new(false)),
-            cond_var: Arc::new(Condvar::new())
+            cond_var: Arc::new(Condvar::new()),
         }
     }
 
@@ -96,7 +96,9 @@ impl Miner {
         let mining = self.mining.clone();
         register(move |_uuid, e| {
             match e {
-                Event::ActionQuit => { running.store(false, Ordering::Relaxed); }
+                Event::ActionQuit => {
+                    running.store(false, Ordering::Relaxed);
+                }
                 Event::NewBlockReceived => {}
                 Event::BlockchainChanged { .. } => {}
                 Event::ActionStopMining => {
@@ -108,7 +110,10 @@ impl Miner {
         });
     }
 
-    fn run_main_loop(context: &Arc<Mutex<Context>>, jobs: Arc<Mutex<Vec<MineJob>>>, running: Arc<AtomicBool>, mining: Arc<AtomicBool>, cond_var: Arc<Condvar>) {
+    fn run_main_loop(
+        context: &Arc<Mutex<Context>>, jobs: Arc<Mutex<Vec<MineJob>>>, running: Arc<AtomicBool>, mining: Arc<AtomicBool>,
+        cond_var: Arc<Condvar>,
+    ) {
         running.store(true, Ordering::SeqCst);
         let delay = Duration::from_secs(30);
         let mut current_job: Option<MineJob> = None;
@@ -232,7 +237,7 @@ impl Miner {
             job.block.index = context.lock().unwrap().chain.get_height() + 1;
             job.block.prev_block_hash = match context.lock().unwrap().chain.last_block() {
                 None => Bytes::default(),
-                Some(block) => block.hash
+                Some(block) => block.hash,
             };
         }
 
@@ -246,7 +251,7 @@ impl Miner {
         let cpus = num_cpus::get();
         let threads = match threads {
             0 => cpus,
-            _ => threads
+            _ => threads,
         } as u32;
         debug!("Starting {} threads for mining", threads);
         debug!("Mining block {}", serde_json::to_string(&job.block).unwrap());

@@ -175,7 +175,33 @@
 
                 <div id="content" class="content">
                     <main>
-                        <h1 id="Домены"><a class="header" href="#Домены">Домены</a></h1>
+                        <p>cat &gt; book/src/api/domains.md &lt;&lt; 'EOF'</p>
+<h2 id="-Домены-api"><a class="header" href="#-Домены-api">🔐 Домены API</a></h2>
+<h3 id="post-domain"><a class="header" href="#post-domain"><code>POST /domain</code></a></h3>
+<p>Регистрирует новый домен (запускает майнинг).</p>
+<h4 id="Тело-запроса"><a class="header" href="#Тело-запроса">Тело запроса</a></h4>
+<pre><code class="language-json">{
+  "name": "mydomain",
+  "zone": "ruv",
+  "data": {
+    "records": [
+      {
+        "type": "A",
+        "domain": "mydomain.ruv",
+        "addr": "127.0.0.1",
+        "ttl": 300
+      }
+    ],
+    "info": "My personal domain",
+    "contacts": [
+      {
+        "name": "email",
+        "value": "me@example.com"
+      }
+    ]
+  }
+}
+</code></pre>
 
                     </main>
 

@@ -15,7 +15,7 @@ pub enum State {
     SendLoop,
     Loop,
     Twin,
-    Offline { from: Instant }
+    Offline { from: Instant },
 }
 
 impl State {
@@ -40,13 +40,9 @@ impl State {
         match self {
             State::Error => true,
             State::Banned => true,
-            State::Idle { from } => {
-                from.elapsed().as_secs() > 60
-            }
-            State::Connected { from } => {
-                from.elapsed().as_secs() > 10
-            }
-            _ => false
+            State::Idle { from } => from.elapsed().as_secs() > 60,
+            State::Connected { from } => from.elapsed().as_secs() > 10,
+            _ => false,
         }
     }
 
@@ -61,14 +57,14 @@ impl State {
             State::Offline { from } => {
                 from.elapsed().as_secs() < 60 // We check offline peers to become online every 5 minutes
             }
-            _ => false
+            _ => false,
         }
     }
 
     pub fn need_reconnect(&self) -> bool {
         match self {
             State::Offline { from } => from.elapsed().as_secs() > 60,
-            _ => false
+            _ => false,
         }
     }
 }

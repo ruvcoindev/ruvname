@@ -1,19 +1,19 @@
 //! client for sending DNS queries to other servers
 
-use std::io::Write;
 #[cfg(feature = "doh")]
 use std::io::Read;
+use std::io::Write;
 use std::marker::{Send, Sync};
-use std::net::{SocketAddr, TcpStream, ToSocketAddrs, UdpSocket};
 #[cfg(feature = "doh")]
 use std::net::IpAddr;
+use std::net::{SocketAddr, TcpStream, ToSocketAddrs, UdpSocket};
 #[cfg(feature = "doh")]
 use std::num::NonZeroUsize;
-use std::sync::atomic::{AtomicUsize, Ordering, AtomicBool};
+use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 use std::sync::mpsc::{channel, Sender};
-use std::sync::{Arc, Mutex};
 #[cfg(feature = "doh")]
 use std::sync::RwLock;
+use std::sync::{Arc, Mutex};
 use std::thread::{sleep, Builder};
 use std::time::Duration as SleepDuration;
 
@@ -23,13 +23,13 @@ use derive_more::{Display, Error, From};
 #[allow(unused_imports)]
 use log::{debug, error, info, trace, warn};
 
-use crate::dns::buffer::{BytePacketBuffer, PacketBuffer, StreamPacketBuffer};
 #[cfg(feature = "doh")]
 use crate::dns::buffer::VectorPacketBuffer;
+use crate::dns::buffer::{BytePacketBuffer, PacketBuffer, StreamPacketBuffer};
 use crate::dns::netutil::{read_packet_length, write_packet_length};
-use crate::dns::protocol::{DnsPacket, DnsQuestion, QueryType};
 #[cfg(feature = "doh")]
 use crate::dns::protocol::DnsRecord;
+use crate::dns::protocol::{DnsPacket, DnsQuestion, QueryType};
 #[cfg(feature = "doh")]
 use lru::LruCache;
 
@@ -39,7 +39,7 @@ pub enum ClientError {
     Io(std::io::Error),
     PoisonedLock,
     LookupFailed,
-    TimeOut
+    TimeOut,
 }
 
 type Result<T> = std::result::Result<T, ClientError>;
@@ -77,7 +77,7 @@ pub struct DnsNetworkClient {
     pending_queries: Arc<Mutex<Vec<PendingQuery>>>,
 
     /// Stopping handle
-    stopped: Arc<AtomicBool>
+    stopped: Arc<AtomicBool>,
 }
 
 /// A query in progress. This struct holds the `id` if the request, and a channel
@@ -86,7 +86,7 @@ pub struct DnsNetworkClient {
 struct PendingQuery {
     seq: u16,
     timestamp: DateTime<Local>,
-    tx: Sender<Option<DnsPacket>>
+    tx: Sender<Option<DnsPacket>>,
 }
 
 unsafe impl Send for DnsNetworkClient {}
@@ -102,7 +102,7 @@ impl DnsNetworkClient {
             socket_ipv4: UdpSocket::bind(format!("0.0.0.0:{}", port)).expect("Error binding IPv4"),
             socket_ipv6: UdpSocket::bind(format!("[::]:{}", port + 1)).expect("Error binding IPv6"),
             pending_queries: Arc::new(Mutex::new(Vec::new())),
-            stopped: Arc::new(AtomicBool::new(false))
+            stopped: Arc::new(AtomicBool::new(false)),
         }
     }
 
@@ -222,56 +222,54 @@ impl DnsClient for DnsNetworkClient {
             let pending_queries_lock = self.pending_queries.clone();
             let stopped = Arc::clone(&self.stopped);
 
-            Builder::new()
-                .name("DnsNetworkClient-worker-thread".into())
-                .spawn(move || {
-                    loop {
-                        if stopped.load(Ordering::SeqCst) {
-                            break;
-                        }
+            Builder::new().name("DnsNetworkClient-worker-thread".into()).spawn(move || {
+                loop {
+                    if stopped.load(Ordering::SeqCst) {
+                        break;
+                    }
 
-                        // Read data into a buffer
-                        let mut res_buffer = BytePacketBuffer::new();
-                        match socket_copy.recv_from(&mut res_buffer.buf) {
-                            Ok(_) => {}
-                            Err(_) => {
-                                continue;
-                            }
-                        }
-
-                        // Construct a DnsPacket from buffer, skipping the packet if parsing failed
-                        let packet = match DnsPacket::from_buffer(&mut res_buffer) {
-                            Ok(packet) => packet,
-                            Err(err) => {
-                                println!("DnsNetworkClient failed to parse packet with error: {:?}", err);
-                                continue;
-                            }
-                        };
-
-                        // Acquire a lock on the pending_queries list, and search for a
-                        // matching PendingQuery to which to deliver the response.
-                        if let Ok(mut pending_queries) = pending_queries_lock.lock() {
-                            let mut matched_query = None;
-                            for (i, pending_query) in pending_queries.iter().enumerate() {
-                                if pending_query.seq == packet.header.id {
-                                    // Matching query found, send the response
-                                    let _ = pending_query.tx.send(Some(packet.clone()));
-
-                                    // Mark this index for removal from list
-                                    matched_query = Some(i);
-
-                                    break;
-                                }
-                            }
-
-                            if let Some(idx) = matched_query {
-                                pending_queries.remove(idx);
-                            } else {
-                                println!("Discarding response for: {:?}", packet.questions[0]);
-                            }
+                    // Read data into a buffer
+                    let mut res_buffer = BytePacketBuffer::new();
+                    match socket_copy.recv_from(&mut res_buffer.buf) {
+                        Ok(_) => {}
+                        Err(_) => {
+                            continue;
                         }
                     }
-                })?;
+
+                    // Construct a DnsPacket from buffer, skipping the packet if parsing failed
+                    let packet = match DnsPacket::from_buffer(&mut res_buffer) {
+                        Ok(packet) => packet,
+                        Err(err) => {
+                            println!("DnsNetworkClient failed to parse packet with error: {:?}", err);
+                            continue;
+                        }
+                    };
+
+                    // Acquire a lock on the pending_queries list, and search for a
+                    // matching PendingQuery to which to deliver the response.
+                    if let Ok(mut pending_queries) = pending_queries_lock.lock() {
+                        let mut matched_query = None;
+                        for (i, pending_query) in pending_queries.iter().enumerate() {
+                            if pending_query.seq == packet.header.id {
+                                // Matching query found, send the response
+                                let _ = pending_query.tx.send(Some(packet.clone()));
+
+                                // Mark this index for removal from list
+                                matched_query = Some(i);
+
+                                break;
+                            }
+                        }
+
+                        if let Some(idx) = matched_query {
+                            pending_queries.remove(idx);
+                        } else {
+                            println!("Discarding response for: {:?}", packet.questions[0]);
+                        }
+                    }
+                }
+            })?;
         }
 
         // Start the same thread for IPv6
@@ -281,56 +279,54 @@ impl DnsClient for DnsNetworkClient {
             let pending_queries_lock = self.pending_queries.clone();
             let stopped = Arc::clone(&self.stopped);
 
-            Builder::new()
-                .name("DnsNetworkClient-worker-thread".into())
-                .spawn(move || {
-                    loop {
-                        if stopped.load(Ordering::SeqCst) {
-                            break;
-                        }
+            Builder::new().name("DnsNetworkClient-worker-thread".into()).spawn(move || {
+                loop {
+                    if stopped.load(Ordering::SeqCst) {
+                        break;
+                    }
 
-                        // Read data into a buffer
-                        let mut res_buffer = BytePacketBuffer::new();
-                        match socket_copy.recv_from(&mut res_buffer.buf) {
-                            Ok(_) => {}
-                            Err(_) => {
-                                continue;
-                            }
-                        }
-
-                        // Construct a DnsPacket from buffer, skipping the packet if parsing failed
-                        let packet = match DnsPacket::from_buffer(&mut res_buffer) {
-                            Ok(packet) => packet,
-                            Err(err) => {
-                                println!("DnsNetworkClient failed to parse packet with error: {:?}", err);
-                                continue;
-                            }
-                        };
-
-                        // Acquire a lock on the pending_queries list, and search for a
-                        // matching PendingQuery to which to deliver the response.
-                        if let Ok(mut pending_queries) = pending_queries_lock.lock() {
-                            let mut matched_query = None;
-                            for (i, pending_query) in pending_queries.iter().enumerate() {
-                                if pending_query.seq == packet.header.id {
-                                    // Matching query found, send the response
-                                    let _ = pending_query.tx.send(Some(packet.clone()));
-
-                                    // Mark this index for removal from list
-                                    matched_query = Some(i);
-
-                                    break;
-                                }
-                            }
-
-                            if let Some(idx) = matched_query {
-                                pending_queries.remove(idx);
-                            } else {
-                                println!("Discarding response for: {:?}", packet.questions[0]);
-                            }
+                    // Read data into a buffer
+                    let mut res_buffer = BytePacketBuffer::new();
+                    match socket_copy.recv_from(&mut res_buffer.buf) {
+                        Ok(_) => {}
+                        Err(_) => {
+                            continue;
                         }
                     }
-                })?;
+
+                    // Construct a DnsPacket from buffer, skipping the packet if parsing failed
+                    let packet = match DnsPacket::from_buffer(&mut res_buffer) {
+                        Ok(packet) => packet,
+                        Err(err) => {
+                            println!("DnsNetworkClient failed to parse packet with error: {:?}", err);
+                            continue;
+                        }
+                    };
+
+                    // Acquire a lock on the pending_queries list, and search for a
+                    // matching PendingQuery to which to deliver the response.
+                    if let Ok(mut pending_queries) = pending_queries_lock.lock() {
+                        let mut matched_query = None;
+                        for (i, pending_query) in pending_queries.iter().enumerate() {
+                            if pending_query.seq == packet.header.id {
+                                // Matching query found, send the response
+                                let _ = pending_query.tx.send(Some(packet.clone()));
+
+                                // Mark this index for removal from list
+                                matched_query = Some(i);
+
+                                break;
+                            }
+                        }
+
+                        if let Some(idx) = matched_query {
+                            pending_queries.remove(idx);
+                        } else {
+                            println!("Discarding response for: {:?}", packet.questions[0]);
+                        }
+                    }
+                }
+            })?;
         }
 
         // Start the thread for timing out requests
@@ -338,33 +334,31 @@ impl DnsClient for DnsNetworkClient {
             let pending_queries_lock = self.pending_queries.clone();
             let stopped = Arc::clone(&self.stopped);
 
-            Builder::new()
-                .name("DnsNetworkClient-timeout-thread".into())
-                .spawn(move || {
-                    let timeout = Duration::seconds(5);
-                    loop {
-                        if stopped.load(Ordering::SeqCst) {
-                            break;
-                        }
-                        if let Ok(mut pending_queries) = pending_queries_lock.lock() {
-                            let mut finished_queries = Vec::new();
-                            for (i, pending_query) in pending_queries.iter().enumerate() {
-                                let expires = pending_query.timestamp + timeout;
-                                if expires < Local::now() {
-                                    let _ = pending_query.tx.send(None);
-                                    finished_queries.push(i);
-                                }
-                            }
-
-                            // Remove `PendingQuery` objects from the list, in reverse order
-                            for idx in finished_queries.iter().rev() {
-                                pending_queries.remove(*idx);
-                            }
-                        }
-
-                        sleep(SleepDuration::from_millis(100));
+            Builder::new().name("DnsNetworkClient-timeout-thread".into()).spawn(move || {
+                let timeout = Duration::seconds(5);
+                loop {
+                    if stopped.load(Ordering::SeqCst) {
+                        break;
                     }
-                })?;
+                    if let Ok(mut pending_queries) = pending_queries_lock.lock() {
+                        let mut finished_queries = Vec::new();
+                        for (i, pending_query) in pending_queries.iter().enumerate() {
+                            let expires = pending_query.timestamp + timeout;
+                            if expires < Local::now() {
+                                let _ = pending_query.tx.send(None);
+                                finished_queries.push(i);
+                            }
+                        }
+
+                        // Remove `PendingQuery` objects from the list, in reverse order
+                        for idx in finished_queries.iter().rev() {
+                            pending_queries.remove(*idx);
+                        }
+                    }
+
+                    sleep(SleepDuration::from_millis(100));
+                }
+            })?;
         }
 
         Ok(())
@@ -396,10 +390,7 @@ pub struct HttpsDnsClient {
 impl HttpsDnsClient {
     pub fn new(bootstraps: Vec<String>) -> Self {
         let client_name = format!("RUVNAME/{}", env!("CARGO_PKG_VERSION"));
-        let servers = bootstraps
-            .iter()
-            .filter_map(|addr| addr.parse().ok())
-            .collect::<Vec<SocketAddr>>();
+        let servers = bootstraps.iter().filter_map(|addr| addr.parse().ok()).collect::<Vec<SocketAddr>>();
         trace!("Using bootstraps: {:?}", &servers);
 
         let cache: LruCache<String, Vec<SocketAddr>> = LruCache::new(NonZeroUsize::new(10).unwrap());
@@ -413,7 +404,7 @@ impl HttpsDnsClient {
             .resolver(move |addr: &str| {
                 let addr = match addr.find(':') {
                     Some(index) => addr[0..index].to_string(),
-                    None => addr.to_string()
+                    None => addr.to_string(),
                 };
                 trace!("Resolving {}", addr);
                 if let Some(addrs) = cache.write().unwrap().get(&addr) {
@@ -446,10 +437,7 @@ impl HttpsDnsClient {
 
                 result.sort();
                 result.dedup();
-                let addrs = result
-                    .into_iter()
-                    .map(|ip| SocketAddr::new(ip, 443))
-                    .collect::<Vec<_>>();
+                let addrs = result.into_iter().map(|ip| SocketAddr::new(ip, 443)).collect::<Vec<_>>();
                 trace!("Resolved addresses: {:?}", &addrs);
                 cache.write().unwrap().put(addr, addrs.clone());
                 Ok(addrs)
@@ -495,40 +483,29 @@ impl DnsClient for HttpsDnsClient {
         let mut req_buffer = VectorPacketBuffer::new();
         packet.write(&mut req_buffer, 512 - 32).expect("Preparing DnsPacket failed!");
 
-        let response = self.agent
-            .post(doh_url)
-            .set("Content-Type", "application/dns-message")
-            .send_bytes(req_buffer.buffer.as_slice());
+        let response = self.agent.post(doh_url).set("Content-Type", "application/dns-message").send_bytes(req_buffer.buffer.as_slice());
 
         match response {
-            Ok(response) => {
-                match response.status() {
-                    200 => {
-                        match response.header("Content-Length") {
-                            None => warn!("No 'Content-Length' header in DoH response!"),
-                            Some(str) => {
-                                match str.parse::<usize>() {
-                                    Ok(size) => {
-                                        let mut bytes: Vec<u8> = Vec::with_capacity(size);
-                                        response.into_reader()
-                                            .take(4096)
-                                            .read_to_end(&mut bytes)?;
-                                        let mut buffer = VectorPacketBuffer::new();
-                                        buffer.buffer.extend_from_slice(bytes.as_slice());
-                                        if let Ok(packet) = DnsPacket::from_buffer(&mut buffer) {
-                                            return Ok(packet);
-                                        }
-                                        warn!("Error parsing DoH result!");
-                                    }
-                                    Err(e) => warn!("Error parsing 'Content-Length' in DoH response! {}", e)
-                                }
+            Ok(response) => match response.status() {
+                200 => match response.header("Content-Length") {
+                    None => warn!("No 'Content-Length' header in DoH response!"),
+                    Some(str) => match str.parse::<usize>() {
+                        Ok(size) => {
+                            let mut bytes: Vec<u8> = Vec::with_capacity(size);
+                            response.into_reader().take(4096).read_to_end(&mut bytes)?;
+                            let mut buffer = VectorPacketBuffer::new();
+                            buffer.buffer.extend_from_slice(bytes.as_slice());
+                            if let Ok(packet) = DnsPacket::from_buffer(&mut buffer) {
+                                return Ok(packet);
                             }
+                            warn!("Error parsing DoH result!");
                         }
-                    }
-                    _ => warn!("Error getting DoH response")
-                }
-            }
-            Err(e) => warn!("DoH error: {}", &e.to_string())
+                        Err(e) => warn!("Error parsing 'Content-Length' in DoH response! {}", e),
+                    },
+                },
+                _ => warn!("Error getting DoH response"),
+            },
+            Err(e) => warn!("DoH error: {}", &e.to_string()),
         }
         warn!("Lookup of {} failed", qname);
         Err(ClientError::LookupFailed)
@@ -543,7 +520,7 @@ pub mod tests {
     pub type StubCallback = dyn Fn(&str, QueryType, &str, bool) -> Result<DnsPacket>;
 
     pub struct DnsStubClient {
-        callback: Box<StubCallback>
+        callback: Box<StubCallback>,
     }
 
     impl<'a> DnsStubClient {
@@ -592,7 +569,7 @@ pub mod tests {
             DnsRecord::A { ref domain, .. } => {
                 assert_eq!("google.com", domain);
             }
-            _ => panic!()
+            _ => panic!(),
         }
     }
 
@@ -608,7 +585,7 @@ pub mod tests {
             DnsRecord::A { ref domain, .. } => {
                 assert_eq!("google.com", domain);
             }
-            _ => panic!()
+            _ => panic!(),
         }
     }
 }

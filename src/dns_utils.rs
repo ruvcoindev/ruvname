@@ -39,7 +39,7 @@ fn create_server_context(context: Arc<Mutex<Context>>, settings: &Settings) -> A
     server_context.allow_recursive = true;
     server_context.resolve_strategy = match settings.dns.forwarders.is_empty() {
         true => ResolveStrategy::Recursive,
-        false => ResolveStrategy::Forward { upstreams: settings.dns.forwarders.clone() }
+        false => ResolveStrategy::Forward { upstreams: settings.dns.forwarders.clone() },
     };
     // Add host filters
     for host in &settings.dns.hosts {
@@ -63,7 +63,9 @@ fn create_server_context(context: Arc<Mutex<Context>>, settings: &Settings) -> A
     server_context.filters.push(Box::new(BlockchainFilter::new(context)));
     match server_context.initialize() {
         Ok(_) => {}
-        Err(e) => { panic!("DNS server failed to initialize: {:?}", e); }
+        Err(e) => {
+            panic!("DNS server failed to initialize: {:?}", e);
+        }
     }
 
     Arc::new(server_context)

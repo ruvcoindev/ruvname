@@ -1,4 +1,3 @@
-cat > book/src/api/mining.md << 'EOF'
 ## ⛏️ Майнинг API
 
 ### `POST /start_mining`

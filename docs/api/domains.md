@@ -1,4 +1,3 @@
-cat > book/src/api/domains.md << 'EOF'
 ## 🔐 Домены API
 
 ### `POST /domain`

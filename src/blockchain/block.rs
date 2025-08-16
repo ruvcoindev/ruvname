@@ -30,7 +30,7 @@ pub struct Block {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub transaction: Option<Transaction>,
     #[serde(default, skip)]
-    hash_good: RefCell<bool>
+    hash_good: RefCell<bool>,
 }
 
 impl Block {
@@ -47,12 +47,15 @@ impl Block {
             hash: Bytes::default(),
             pub_key,
             signature: Bytes::default(),
-            hash_good: RefCell::new(false)
+            hash_good: RefCell::new(false),
         }
     }
 
     #[allow(clippy::too_many_arguments)]
-    pub fn from_all_params(index: u64, timestamp: i64, version: u32, difficulty: u32, random: u32, nonce: u64, prev_block_hash: Bytes, hash: Bytes, pub_key: Bytes, signature: Bytes, transaction: Option<Transaction>) -> Self {
+    pub fn from_all_params(
+        index: u64, timestamp: i64, version: u32, difficulty: u32, random: u32, nonce: u64, prev_block_hash: Bytes, hash: Bytes,
+        pub_key: Bytes, signature: Bytes, transaction: Option<Transaction>,
+    ) -> Self {
         Block {
             index,
             timestamp,
@@ -65,7 +68,7 @@ impl Block {
             hash,
             pub_key,
             signature,
-            hash_good: RefCell::new(false)
+            hash_good: RefCell::new(false),
         }
     }
 
@@ -74,9 +77,9 @@ impl Block {
     }
 
     pub fn is_genesis(&self) -> bool {
-        self.index == 1 &&
-            matches!(Transaction::get_type(&self.transaction), TransactionType::Origin) &&
-            self.prev_block_hash == Bytes::default()
+        self.index == 1
+            && matches!(Transaction::get_type(&self.transaction), TransactionType::Origin)
+            && self.prev_block_hash == Bytes::default()
     }
 
     pub fn is_hash_good(&self) -> bool {

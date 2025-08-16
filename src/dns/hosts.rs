@@ -9,7 +9,7 @@ use crate::dns::protocol::{DnsPacket, DnsQuestion, DnsRecord, QueryType, Transie
 const NAME_SERVER: &str = "hosts";
 
 pub struct HostsFilter {
-    hosts: HashMap<String, Vec<IpAddr>>
+    hosts: HashMap<String, Vec<IpAddr>>,
 }
 
 impl HostsFilter {
@@ -42,7 +42,7 @@ impl HostsFilter {
 
                 map
             }
-            Err(..) => HashMap::new()
+            Err(..) => HashMap::new(),
         };
         HostsFilter { hosts }
     }
@@ -73,7 +73,7 @@ impl DnsFilter for HostsFilter {
             packet.authorities.push(DnsRecord::NS {
                 domain: String::from("hosts"),
                 host: String::from(NAME_SERVER),
-                ttl: TransientTtl(600)
+                ttl: TransientTtl(600),
             });
             return Some(packet);
         }

@@ -15,7 +15,7 @@ use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
 #[derive(Clone, Default)]
 pub struct Bytes {
-    data: Vec<u8>
+    data: Vec<u8>,
 }
 
 impl Bytes {
@@ -122,7 +122,10 @@ impl fmt::Debug for Bytes {
 }
 
 impl Serialize for Bytes {
-    fn serialize<S>(&self, serializer: S) -> Result<<S as Serializer>::Ok, <S as Serializer>::Error> where S: Serializer {
+    fn serialize<S>(&self, serializer: S) -> Result<<S as Serializer>::Ok, <S as Serializer>::Error>
+    where
+        S: Serializer,
+    {
         serializer.serialize_str(&crate::commons::to_hex(&self.data))
     }
 }
@@ -136,7 +139,10 @@ impl<'de> Visitor<'de> for BytesVisitor {
         formatter.write_str("bytes in HEX format")
     }
 
-    fn visit_str<E>(self, value: &str) -> Result<Self::Value, E> where E: DeError {
+    fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
+    where
+        E: DeError,
+    {
         if !value.is_empty() && value.len() % 2 == 0 {
             Ok(Bytes::new(crate::from_hex(value).unwrap()))
         } else if value.is_empty() {
@@ -146,7 +152,10 @@ impl<'de> Visitor<'de> for BytesVisitor {
         }
     }
 
-    fn visit_bytes<E>(self, value: &[u8]) -> Result<Self::Value, E> where E: DeError {
+    fn visit_bytes<E>(self, value: &[u8]) -> Result<Self::Value, E>
+    where
+        E: DeError,
+    {
         if !value.is_empty() {
             Ok(Bytes::from_bytes(value))
         } else {
@@ -156,7 +165,10 @@ impl<'de> Visitor<'de> for BytesVisitor {
 }
 
 impl<'dd> Deserialize<'dd> for Bytes {
-    fn deserialize<D>(deserializer: D) -> Result<Self, <D as Deserializer<'dd>>::Error> where D: Deserializer<'dd> {
+    fn deserialize<D>(deserializer: D) -> Result<Self, <D as Deserializer<'dd>>::Error>
+    where
+        D: Deserializer<'dd>,
+    {
         deserializer.deserialize_str(BytesVisitor)
     }
 }

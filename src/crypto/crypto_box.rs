@@ -8,7 +8,7 @@ use crate::{from_hex, to_hex};
 
 pub struct CryptoBox {
     pub(crate) secret: SecretKey,
-    pub(crate) public: PublicKey
+    pub(crate) public: PublicKey,
 }
 
 impl CryptoBox {
@@ -18,7 +18,10 @@ impl CryptoBox {
         Self { secret, public }
     }
 
-    pub fn generate<R>(csprng: &mut R) -> Self where R: CryptoRng + RngCore {
+    pub fn generate<R>(csprng: &mut R) -> Self
+    where
+        R: CryptoRng + RngCore,
+    {
         let (secret, public) = ecies_ed25519_ng::generate_keypair(csprng);
         Self { secret, public }
     }
@@ -52,9 +55,7 @@ impl CryptoBox {
 
 impl Debug for CryptoBox {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-        f.debug_struct("CryptoBox")
-            .field("public", &to_hex(&self.public.to_bytes()))
-            .finish()
+        f.debug_struct("CryptoBox").field("public", &to_hex(&self.public.to_bytes())).finish()
     }
 }
 

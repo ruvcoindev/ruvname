@@ -12,15 +12,12 @@ use std::sync::{atomic, Arc, Mutex};
 use std::time::Instant;
 use std::{fs, thread};
 
+use crate::keystore::rand::RngCore;
 use blakeout::Blakeout;
 #[allow(unused_imports)]
 use log::{debug, error, info, trace, warn};
-use crate::keystore::rand::RngCore;
 use serde::{Deserialize, Serialize};
 
-use ed25519_dalek::{Signature, Signer, SigningKey, Verifier, SecretKey};
-use ed25519_dalek::ed25519::SignatureBytes;
-use rand::CryptoRng;
 use crate::blockchain::hash_utils::*;
 use crate::bytes::Bytes;
 use crate::commons::KEYSTORE_DIFFICULTY;
@@ -28,6 +25,9 @@ use crate::crypto::CryptoBox;
 use crate::event::Event;
 use crate::eventbus::{post, register};
 use crate::{from_hex, setup_miner_thread, to_hex, Context};
+use ed25519_dalek::ed25519::SignatureBytes;
+use ed25519_dalek::{SecretKey, Signature, Signer, SigningKey, Verifier};
+use rand::CryptoRng;
 
 #[derive(Debug)]
 pub struct Keystore {
@@ -35,7 +35,7 @@ pub struct Keystore {
     hash: RefCell<Bytes>,
     path: String,
     crypto_box: CryptoBox,
-    old: bool
+    old: bool,
 }
 
 impl Keystore {
@@ -49,7 +49,10 @@ impl Keystore {
         Keystore { keypair, hash: RefCell::new(Bytes::default()), path: String::new(), crypto_box, old: false }
     }
 
-    pub fn from_random<R>(csprng: &mut R) -> Self where R: CryptoRng + RngCore {
+    pub fn from_random<R>(csprng: &mut R) -> Self
+    where
+        R: CryptoRng + RngCore,
+    {
         let mut buf = [0u8; 32];
         csprng.fill_bytes(&mut buf);
         let secret = SecretKey::from(buf);
@@ -81,29 +84,26 @@ impl Keystore {
     pub fn from_file(filename: &str, _password: &str) -> Option<Self> {
         let path = Path::new(filename);
         match fs::read(&path) {
-            Ok(key) => {
-                match toml::from_str::<Keys>(&String::from_utf8(key).unwrap_or_default()) {
-                    Ok(keys) => {
-                        let secret = SecretKey::try_from(from_hex(&keys.signing.secret).unwrap().as_slice()).unwrap();
-                        let keypair = SigningKey::from_bytes(&secret);
-                        let crypto_box = CryptoBox::from_strings(&keys.encryption.secret, &keys.encryption.public);
-                        let keystore = Keystore { keypair, hash: RefCell::new(Bytes::default()), path: String::from(filename), crypto_box, old: false };
-                        let bytes = Bytes::from_bytes(&keystore.keypair.verifying_key().to_bytes());
-                        if check_public_key_strength(&bytes, KEYSTORE_DIFFICULTY) {
-                            Some(keystore)
-                        } else {
-                            None
-                        }
-                    }
-                    Err(e) => {
-                        error!("Error loading keystore from {}: {}", filename, e);
+            Ok(key) => match toml::from_str::<Keys>(&String::from_utf8(key).unwrap_or_default()) {
+                Ok(keys) => {
+                    let secret = SecretKey::try_from(from_hex(&keys.signing.secret).unwrap().as_slice()).unwrap();
+                    let keypair = SigningKey::from_bytes(&secret);
+                    let crypto_box = CryptoBox::from_strings(&keys.encryption.secret, &keys.encryption.public);
+                    let keystore =
+                        Keystore { keypair, hash: RefCell::new(Bytes::default()), path: String::from(filename), crypto_box, old: false };
+                    let bytes = Bytes::from_bytes(&keystore.keypair.verifying_key().to_bytes());
+                    if check_public_key_strength(&bytes, KEYSTORE_DIFFICULTY) {
+                        Some(keystore)
+                    } else {
                         None
                     }
                 }
-            }
-            Err(_) => {
-                None
-            }
+                Err(e) => {
+                    error!("Error loading keystore from {}: {}", filename, e);
+                    None
+                }
+            },
+            Err(_) => None,
         }
     }
 
@@ -116,7 +116,9 @@ impl Keystore {
                 f.write_all(data.trim().as_bytes()).expect("Error saving keystore");
                 self.path = filename.to_owned();
             }
-            Err(_) => { error!("Error saving key file!"); }
+            Err(_) => {
+                error!("Error saving key file!");
+            }
         }
     }
 
@@ -213,7 +215,7 @@ pub fn create_key(context: Arc<Mutex<Context>>) {
     let threads = context.lock().unwrap().settings.mining.threads;
     let threads = match threads {
         0 => num_cpus::get(),
-        _ => threads
+        _ => threads,
     };
     for cpu in 0..threads {
         let context = Arc::clone(&context);
@@ -289,7 +291,7 @@ fn generate_key(difficulty: u32, mining: Arc<AtomicBool>) -> Option<Keystore> {
 #[derive(Serialize, Deserialize, Debug)]
 pub struct KeyPack {
     public: String,
-    secret: String
+    secret: String,
 }
 
 impl KeyPack {
@@ -302,7 +304,7 @@ impl KeyPack {
 pub struct Keys {
     encrypted: bool,
     signing: KeyPack,
-    encryption: KeyPack
+    encryption: KeyPack,
 }
 
 impl Keys {

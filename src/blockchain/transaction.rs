@@ -23,7 +23,7 @@ pub struct Transaction {
     #[serde(default, skip_serializing_if = "Bytes::is_zero")]
     pub encryption: Bytes,
     #[serde(default, skip_serializing_if = "String::is_empty")]
-    pub data: String
+    pub data: String,
 }
 
 impl Transaction {
@@ -39,13 +39,20 @@ impl Transaction {
 
     pub fn origin(hash: Bytes, signing: Bytes, encryption: Bytes) -> Self {
         let data = serde_json::to_string(&Origin { zones: hash }).unwrap();
-        Transaction { identity: Bytes::default(), confirmation: Bytes::default(), class: String::from(CLASS_ORIGIN), data, signing, encryption }
+        Transaction {
+            identity: Bytes::default(),
+            confirmation: Bytes::default(),
+            class: String::from(CLASS_ORIGIN),
+            data,
+            signing,
+            encryption,
+        }
     }
 
     pub fn from_json(json: &str) -> Option<Self> {
         match serde_json::from_str(json) {
             Ok(transaction) => Some(transaction),
-            Err(_) => None
+            Err(_) => None,
         }
     }
 
@@ -117,7 +124,7 @@ pub struct DomainData {
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub records: Vec<DnsRecord>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
-    pub contacts: Vec<ContactsData>
+    pub contacts: Vec<ContactsData>,
 }
 
 impl DomainData {
@@ -135,18 +142,18 @@ pub enum DomainState {
     // Expired, but can be renewed only by owner
     Expired { renewed_time: i64, until: i64 },
     // Expired and can be recaptured by anyone
-    Free { renewed_time: i64 }
+    Free { renewed_time: i64 },
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 pub struct Origin {
-    zones: Bytes
+    zones: Bytes,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 pub struct ContactsData {
     pub name: String,
-    pub value: String
+    pub value: String,
 }
 
 impl Display for ContactsData {

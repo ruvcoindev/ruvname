@@ -10,7 +10,7 @@ pub enum BlockQuality {
     Future,
     Rewind,
     Bad,
-    Fork
+    Fork,
 }
 
 #[derive(Debug, PartialEq)]
@@ -21,13 +21,13 @@ pub enum MineResult {
     WrongKey,
     WrongZone,
     NotOwned,
-    Cooldown { time: i64 }
+    Cooldown { time: i64 },
 }
 
 #[derive(Debug)]
 pub struct Options {
     pub origin: String,
-    pub version: u32
+    pub version: u32,
 }
 
 impl Options {
@@ -43,7 +43,7 @@ impl Options {
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 pub struct ZoneData {
     pub name: String,
-    pub ruvchain: bool
+    pub ruvchain: bool,
 }
 
 impl Display for ZoneData {

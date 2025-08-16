@@ -10,7 +10,7 @@ pub const ZERO_NONCE: [u8; 12] = [0u8; 12];
 #[derive(Clone)]
 pub struct Chacha {
     cipher: ChaCha20Poly1305,
-    nonce: Nonce
+    nonce: Nonce,
 }
 
 impl Chacha {

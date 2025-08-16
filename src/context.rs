@@ -10,7 +10,7 @@ pub struct Context {
     pub keystores: Vec<Keystore>,
     active_key: usize,
     pub chain: Chain,
-    pub miner_state: MinerState
+    pub miner_state: MinerState,
 }
 
 impl Context {

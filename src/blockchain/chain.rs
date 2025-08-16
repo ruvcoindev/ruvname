@@ -6,10 +6,10 @@ use std::ops::Deref;
 use std::path::Path;
 
 use chrono::Utc;
+use lazy_static::lazy_static;
 #[allow(unused_imports)]
 use log::{debug, error, info, trace, warn};
 use sqlite::{Connection, State, Statement};
-use lazy_static::lazy_static;
 
 use crate::blockchain::hash_utils::*;
 use crate::blockchain::transaction::{DomainData, DomainState};
@@ -31,10 +31,12 @@ const SQL_GET_LAST_BLOCK: &str = "SELECT * FROM blocks ORDER BY id DESC LIMIT 1;
 const SQL_TRUNCATE_BLOCKS: &str = "DELETE FROM blocks WHERE id >= ?;";
 const SQL_TRUNCATE_DOMAINS: &str = "DELETE FROM domains WHERE id >= ?;";
 
-const SQL_ADD_DOMAIN: &str = "INSERT INTO domains (id, timestamp, identity, confirmation, data, signing, encryption) VALUES (?, ?, ?, ?, ?, ?, ?)";
+const SQL_ADD_DOMAIN: &str =
+    "INSERT INTO domains (id, timestamp, identity, confirmation, data, signing, encryption) VALUES (?, ?, ?, ?, ?, ?, ?)";
 const SQL_GET_BLOCK_BY_ID: &str = "SELECT * FROM blocks WHERE id=? LIMIT 1;";
 const SQL_GET_LAST_FULL_BLOCK: &str = "SELECT * FROM blocks WHERE id < ? AND `transaction`<>'' ORDER BY id DESC LIMIT 1;";
-const SQL_GET_LAST_FULL_BLOCK_FOR_KEY: &str = "SELECT * FROM blocks WHERE id < ? AND `transaction`<>'' AND pub_key = ? ORDER BY id DESC LIMIT 1;";
+const SQL_GET_LAST_FULL_BLOCK_FOR_KEY: &str =
+    "SELECT * FROM blocks WHERE id < ? AND `transaction`<>'' AND pub_key = ? ORDER BY id DESC LIMIT 1;";
 const SQL_GET_DOMAIN_OWNER_BY_ID: &str = "SELECT signing, timestamp FROM domains WHERE id < ? AND identity = ? ORDER BY id DESC LIMIT 1;";
 const SQL_GET_DOMAIN_BY_ID: &str = "SELECT * FROM domains WHERE identity = ? AND id < ? ORDER BY id DESC LIMIT 1;";
 const SQL_GET_DOMAINS_BY_KEY: &str = "SELECT timestamp, identity, data, signing FROM domains WHERE signing = ? ORDER BY id;";
@@ -59,7 +61,7 @@ pub struct Chain {
     max_height: u64,
     db: Connection,
     zones: Vec<ZoneData>,
-    signers: RefCell<SignersCache>
+    signers: RefCell<SignersCache>,
 }
 
 impl Chain {
@@ -113,7 +115,7 @@ impl Chain {
             if let Some(last) = &last_block {
                 last_full_block = match &last.transaction {
                     None => self.get_last_full_block(last.index, None),
-                    Some(_) => Some(last.clone())
+                    Some(_) => Some(last.clone()),
                 };
             }
         }
@@ -135,7 +137,7 @@ impl Chain {
                         continue;
                     }
 
-                    if WRONG_HASHES.contains(&block.hash)  {
+                    if WRONG_HASHES.contains(&block.hash) {
                         error!("Block {} has bad hash:\n{:?}", block.index, &block);
                         info!("Truncating database from block {}...", block.index);
                         if let Err(e) = self.truncate_db_from_block(block.index) {
@@ -295,7 +297,7 @@ impl Chain {
             None => {
                 return None;
             }
-            Some(ref block) => block.clone()
+            Some(ref block) => block.clone(),
         };
         // TODO maybe make some config option to mine signing blocks above?
         let sign_count = self.get_height() - block.index;
@@ -311,7 +313,9 @@ impl Chain {
         }
         let (last_hash, last_index) = match &self.last_block {
             Some(block) => (block.hash.clone(), block.index),
-            None => { return None; }
+            None => {
+                return None;
+            }
         };
 
         let signers: HashSet<Bytes> = self.get_block_signers(&block).into_iter().collect();
@@ -400,7 +404,7 @@ impl Chain {
         let sql = match t.class.as_ref() {
             CLASS_DOMAIN => SQL_ADD_DOMAIN,
             CLASS_ORIGIN => return Ok(State::Done),
-            _ => return Err(sqlite::Error { code: None, message: None })
+            _ => return Err(sqlite::Error { code: None, message: None }),
         };
 
         let mut statement = self.db.prepare(sql)?;
@@ -499,12 +503,16 @@ impl Chain {
             let owner = transaction.signing.eq(pub_key);
             match state {
                 DomainState::NotFound => {}
-                DomainState::Alive { .. } => if !owner {
-                    return NotOwned;
-                },
-                DomainState::Expired { .. } => if !owner {
-                    return NotOwned;
-                },
+                DomainState::Alive { .. } => {
+                    if !owner {
+                        return NotOwned;
+                    }
+                }
+                DomainState::Expired { .. } => {
+                    if !owner {
+                        return NotOwned;
+                    }
+                }
                 DomainState::Free { .. } => {}
             }
         }
@@ -538,7 +546,7 @@ impl Chain {
             DomainState::NotFound => true,
             DomainState::Alive { .. } => false,
             DomainState::Expired { .. } => false,
-            DomainState::Free { .. } => true
+            DomainState::Free { .. } => true,
         }
     }
 
@@ -551,7 +559,8 @@ impl Chain {
         let zones_text = ZONES_TXT.replace("\r", "");
         let zones: Vec<_> = zones_text.split('\n').collect();
         for zone in zones {
-            let ruvchain = zone == "ruv" || zone == "mesh" || zone == "node" || zone == "dnet" || zone == "p2p" || zone == "tamb" || zone == "tmb";
+            let ruvchain =
+                zone == "ruv" || zone == "mesh" || zone == "node" || zone == "dnet" || zone == "p2p" || zone == "tamb" || zone == "tmb";
             result.push(ZoneData { name: zone.to_owned(), ruvchain })
         }
         result
@@ -660,7 +669,7 @@ impl Chain {
         match self.get_domain_transaction_and_state(domain) {
             (None, _) => None,
             (Some(transaction), state) => {
-                if matches!(state, DomainState::Alive {..}) {
+                if matches!(state, DomainState::Alive { .. }) {
                     Some(transaction.data)
                 } else {
                     None
@@ -732,7 +741,7 @@ impl Chain {
                 // TODO optimize
                 match self.get_domain_renewal_time(timestamp, &identity) {
                     None => result.insert(identity, (domain, timestamp, data)),
-                    Some(t) => result.insert(identity, (domain, t, data))
+                    Some(t) => result.insert(identity, (domain, t, data)),
                 };
             }
         }
@@ -746,21 +755,21 @@ impl Chain {
     pub fn get_height(&self) -> u64 {
         match self.last_block {
             None => 0u64,
-            Some(ref block) => block.index
+            Some(ref block) => block.index,
         }
     }
 
     pub fn get_last_hash(&self) -> Bytes {
         match &self.last_block {
             None => Bytes::default(),
-            Some(block) => block.hash.clone()
+            Some(block) => block.hash.clone(),
         }
     }
 
     pub fn get_soa_serial(&self) -> u32 {
         match &self.last_full_block {
             None => 0,
-            Some(block) => block.timestamp as u32
+            Some(block) => block.timestamp as u32,
         }
     }
 
@@ -818,7 +827,7 @@ impl Chain {
                     SIGNER_DIFFICULTY
                 }
             }
-            Some(t) => self.get_difficulty_for_transaction(t, block.index, block.timestamp)
+            Some(t) => self.get_difficulty_for_transaction(t, block.index, block.timestamp),
         };
         if block.difficulty < difficulty {
             warn!("Block difficulty is lower than needed: {} < {}", block.difficulty, difficulty);
@@ -955,8 +964,7 @@ impl Chain {
                 } else if !self.is_good_signer_for_block(block, full_block) {
                     return false;
                 }
-            } else if sign_count < BLOCK_SIGNERS_ALL && block.transaction.is_none()
-                && !self.is_good_signer_for_block(block, full_block) {
+            } else if sign_count < BLOCK_SIGNERS_ALL && block.transaction.is_none() && !self.is_good_signer_for_block(block, full_block) {
                 return false;
             }
         }
@@ -994,10 +1002,10 @@ impl Chain {
                         warn!("Error parsing DomainData from {:?}", transaction);
                         u32::MAX
                     }
-                }
+                };
             }
             CLASS_ORIGIN => ORIGIN_DIFFICULTY,
-            _ => u32::MAX
+            _ => u32::MAX,
         }
     }
 
@@ -1018,11 +1026,7 @@ impl Chain {
     /// Gets public keys of a node that needs to mine "signature" block above this block
     /// block - last full block
     pub fn get_block_signers(&self, block: &Block) -> Vec<Bytes> {
-        let minimum_block_count = if block.index < 855 {
-            1i64
-        } else {
-            block.index as i64 / 100
-        };
+        let minimum_block_count = if block.index < 855 { 1i64 } else { block.index as i64 / 100 };
         let mut result = Vec::new();
         if block.index < BLOCK_SIGNERS_START || self.get_height() < block.index {
             return result;
@@ -1078,13 +1082,25 @@ impl Chain {
         let hash = Bytes::from_bytes(statement.read::<Vec<u8>, usize>(8).unwrap().as_slice());
         let pub_key = Bytes::from_bytes(statement.read::<Vec<u8>, usize>(9).unwrap().as_slice());
         let signature = Bytes::from_bytes(statement.read::<Vec<u8>, usize>(10).unwrap().as_slice());
-        Some(Block::from_all_params(index, timestamp, version, difficulty, random, nonce, prev_block_hash, hash, pub_key, signature, transaction))
+        Some(Block::from_all_params(
+            index,
+            timestamp,
+            version,
+            difficulty,
+            random,
+            nonce,
+            prev_block_hash,
+            hash,
+            pub_key,
+            signature,
+            transaction,
+        ))
     }
 }
 
 struct SignersCache {
     index: u64,
-    signers: Vec<Bytes>
+    signers: Vec<Bytes>,
 }
 
 impl SignersCache {
@@ -1108,7 +1124,7 @@ pub mod tests {
     use log::LevelFilter;
     #[allow(unused_imports)]
     use log::{debug, error, info, trace, warn};
-    use simplelog::{ColorChoice, ConfigBuilder, TermLogger, TerminalMode, LevelPadding, format_description};
+    use simplelog::{format_description, ColorChoice, ConfigBuilder, LevelPadding, TermLogger, TerminalMode};
 
     use crate::{Block, Chain, Settings};
 

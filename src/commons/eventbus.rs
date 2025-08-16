@@ -11,7 +11,9 @@ lazy_static! {
 }
 
 pub fn register<F>(closure: F) -> Uuid
-where F: FnMut(&Uuid, Event) -> bool + Send + Sync + 'static {
+where
+    F: FnMut(&Uuid, Event) -> bool + Send + Sync + 'static,
+{
     STATIC_BUS.lock().unwrap().register(Box::new(closure))
 }
 

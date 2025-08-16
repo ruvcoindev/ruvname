@@ -15,7 +15,7 @@ pub enum ResolveError {
     Client(crate::dns::client::ClientError),
     Cache(crate::dns::cache::CacheError),
     Io(std::io::Error),
-    NoServerFound
+    NoServerFound,
 }
 
 type Result<T> = std::result::Result<T, ResolveError>;
@@ -70,7 +70,7 @@ pub trait DnsResolver {
 /// This resolver uses an external DNS server to service a query
 pub struct ForwardingDnsResolver {
     context: Arc<ServerContext>,
-    upstreams: Vec<String>
+    upstreams: Vec<String>,
 }
 
 impl ForwardingDnsResolver {
@@ -99,8 +99,8 @@ impl DnsResolver for ForwardingDnsResolver {
                 } else {
                     self.context.old_client.send_query(qname, qtype, upstream, true)?
                 }
-            },
-            Some(packet) => packet
+            }
+            Some(packet) => packet,
         };
 
         self.context.cache.store(&result.answers)?;
@@ -113,7 +113,7 @@ impl DnsResolver for ForwardingDnsResolver {
 ///
 /// This resolver can answer any request using the root servers of the internet
 pub struct RecursiveDnsResolver {
-    context: Arc<ServerContext>
+    context: Arc<ServerContext>,
 }
 
 impl RecursiveDnsResolver {
@@ -149,7 +149,7 @@ impl DnsResolver for RecursiveDnsResolver {
                     tentative_ns = Some(addr);
                     break;
                 }
-                None => continue
+                None => continue,
             }
         }
 
@@ -194,7 +194,7 @@ impl DnsResolver for RecursiveDnsResolver {
             // If not, we'll have to resolve the ip of a NS record
             let new_ns_name = match response.get_unresolved_ns(qname) {
                 Some(x) => x,
-                None => return Ok(response)
+                None => return Ok(response),
             };
 
             // Recursively resolve the NS
@@ -233,7 +233,7 @@ mod tests {
                 packet.answers.push(DnsRecord::A {
                     domain: "google.com".to_string(),
                     addr: "127.0.0.1".parse().unwrap(),
-                    ttl: TransientTtl(3600)
+                    ttl: TransientTtl(3600),
                 });
             } else {
                 packet.header.rescode = ResultCode::NXDOMAIN;
@@ -246,7 +246,7 @@ mod tests {
             Some(mut ctx) => {
                 ctx.resolve_strategy = ResolveStrategy::Forward { upstreams: vec![String::from("127.0.0.1:53")] };
             }
-            None => panic!()
+            None => panic!(),
         }
 
         let mut resolver = context.create_resolver(Arc::clone(&context));
@@ -255,7 +255,7 @@ mod tests {
         {
             let res = match resolver.resolve("google.com", QueryType::A, true) {
                 Ok(x) => x,
-                Err(_) => panic!()
+                Err(_) => panic!(),
             };
 
             assert_eq!(1, res.answers.len());
@@ -264,7 +264,7 @@ mod tests {
                 DnsRecord::A { ref domain, .. } => {
                     assert_eq!("google.com", domain);
                 }
-                _ => panic!()
+                _ => panic!(),
             }
         };
 
@@ -273,14 +273,14 @@ mod tests {
         {
             let res = match resolver.resolve("google.com", QueryType::A, true) {
                 Ok(x) => x,
-                Err(_) => panic!()
+                Err(_) => panic!(),
             };
 
             assert_eq!(1, res.answers.len());
 
             let list = match context.cache.list() {
                 Ok(x) => x,
-                Err(_) => panic!()
+                Err(_) => panic!(),
             };
 
             assert_eq!(1, list.len());
@@ -294,7 +294,7 @@ mod tests {
         {
             let res = match resolver.resolve("yahoo.com", QueryType::A, true) {
                 Ok(x) => x,
-                Err(_) => panic!()
+                Err(_) => panic!(),
             };
 
             assert_eq!(0, res.answers.len());
@@ -355,7 +355,7 @@ mod tests {
                 packet.answers.push(DnsRecord::A {
                     domain: "a.google.com".to_string(),
                     addr: "127.0.0.1".parse().unwrap(),
-                    ttl: TransientTtl(3600)
+                    ttl: TransientTtl(3600),
                 });
 
                 return Ok(packet);
@@ -365,7 +365,7 @@ mod tests {
                 packet.answers.push(DnsRecord::A {
                     domain: "b.google.com".to_string(),
                     addr: "127.0.0.1".parse().unwrap(),
-                    ttl: TransientTtl(3600)
+                    ttl: TransientTtl(3600),
                 });
 
                 return Ok(packet);
@@ -375,7 +375,7 @@ mod tests {
                 packet.answers.push(DnsRecord::A {
                     domain: "c.google.com".to_string(),
                     addr: "127.0.0.1".parse().unwrap(),
-                    ttl: TransientTtl(3600)
+                    ttl: TransientTtl(3600),
                 });
 
                 return Ok(packet);
@@ -400,7 +400,7 @@ mod tests {
             nameservers.push(DnsRecord::A {
                 domain: "a.myroot.net".to_string(),
                 addr: "127.0.0.1".parse().unwrap(),
-                ttl: TransientTtl(3600)
+                ttl: TransientTtl(3600),
             });
 
             let _ = context.cache.store(&nameservers);
@@ -410,7 +410,7 @@ mod tests {
             Ok(packet) => {
                 assert_eq!(1, packet.header.id);
             }
-            Err(_) => panic!()
+            Err(_) => panic!(),
         }
 
         // Insert TLD servers
@@ -420,7 +420,7 @@ mod tests {
             nameservers.push(DnsRecord::A {
                 domain: "a.mytld.net".to_string(),
                 addr: "127.0.0.2".parse().unwrap(),
-                ttl: TransientTtl(3600)
+                ttl: TransientTtl(3600),
             });
 
             let _ = context.cache.store(&nameservers);
@@ -430,7 +430,7 @@ mod tests {
             Ok(packet) => {
                 assert_eq!(2, packet.header.id);
             }
-            Err(_) => panic!()
+            Err(_) => panic!(),
         }
 
         // Insert authoritative servers
@@ -439,12 +439,12 @@ mod tests {
             nameservers.push(DnsRecord::NS {
                 domain: "google.com".to_string(),
                 host: "ns1.google.com".to_string(),
-                ttl: TransientTtl(3600)
+                ttl: TransientTtl(3600),
             });
             nameservers.push(DnsRecord::A {
                 domain: "ns1.google.com".to_string(),
                 addr: "127.0.0.3".parse().unwrap(),
-                ttl: TransientTtl(3600)
+                ttl: TransientTtl(3600),
             });
 
             let _ = context.cache.store(&nameservers);
@@ -454,7 +454,7 @@ mod tests {
             Ok(packet) => {
                 assert_eq!(3, packet.header.id);
             }
-            Err(_) => panic!()
+            Err(_) => panic!(),
         }
     }
 
@@ -467,7 +467,7 @@ mod tests {
                 packet.answers.push(DnsRecord::A {
                     domain: "google.com".to_string(),
                     addr: "127.0.0.1".parse().unwrap(),
-                    ttl: TransientTtl(3600)
+                    ttl: TransientTtl(3600),
                 });
             } else {
                 packet.header.rescode = ResultCode::NXDOMAIN;
@@ -481,7 +481,7 @@ mod tests {
                     retry: 3600,
                     expire: 3600,
                     minimum: 3600,
-                    ttl: TransientTtl(3600)
+                    ttl: TransientTtl(3600),
                 });
             }
 
@@ -496,7 +496,7 @@ mod tests {
         nameservers.push(DnsRecord::A {
             domain: "ns1.google.com".to_string(),
             addr: "127.0.0.1".parse().unwrap(),
-            ttl: TransientTtl(3600)
+            ttl: TransientTtl(3600),
         });
 
         let _ = context.cache.store(&nameservers);
@@ -505,7 +505,7 @@ mod tests {
         {
             let res = match resolver.resolve("google.com", QueryType::A, true) {
                 Ok(x) => x,
-                Err(_) => panic!()
+                Err(_) => panic!(),
             };
 
             assert_eq!(1, res.answers.len());
@@ -514,7 +514,7 @@ mod tests {
                 DnsRecord::A { ref domain, .. } => {
                     assert_eq!("google.com", domain);
                 }
-                _ => panic!()
+                _ => panic!(),
             }
         };
 
@@ -522,7 +522,7 @@ mod tests {
         {
             let res = match resolver.resolve("foobar.google.com", QueryType::A, true) {
                 Ok(x) => x,
-                Err(_) => panic!()
+                Err(_) => panic!(),
             };
 
             assert_eq!(ResultCode::NXDOMAIN, res.header.rescode);
@@ -533,7 +533,7 @@ mod tests {
         {
             let res = match resolver.resolve("google.com", QueryType::A, true) {
                 Ok(x) => x,
-                Err(_) => panic!()
+                Err(_) => panic!(),
             };
 
             assert_eq!(1, res.answers.len());
@@ -543,7 +543,7 @@ mod tests {
         {
             let list = match context.cache.list() {
                 Ok(x) => x,
-                Err(_) => panic!()
+                Err(_) => panic!(),
             };
 
             assert_eq!(3, list.len());

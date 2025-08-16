@@ -18,7 +18,7 @@ pub enum Message {
     GetPeers,
     Peers { peers: Vec<String> },
     GetBlock { index: u64 },
-    Block { index: u64, block: Vec<u8> }
+    Block { index: u64, block: Vec<u8> },
 }
 
 impl Message {
@@ -31,7 +31,14 @@ impl Message {
     }
 
     pub fn shake(app_version: &str, origin: &str, version: u32, public: bool, rand_id: &str, height: u64) -> Self {
-        Message::Shake { app_version: app_version.to_owned(), origin: origin.to_owned(), version, public, rand_id: rand_id.to_owned(), height }
+        Message::Shake {
+            app_version: app_version.to_owned(),
+            origin: origin.to_owned(),
+            version,
+            public,
+            rand_id: rand_id.to_owned(),
+            height,
+        }
     }
 
     pub fn ping(height: u64, hash: Bytes) -> Self {

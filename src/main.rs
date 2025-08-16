@@ -11,7 +11,7 @@ use std::{env, thread};
 use getopts::{Matches, Options};
 #[allow(unused_imports)]
 use log::{debug, error, info, trace, warn, LevelFilter};
-use simplelog::{ColorChoice, CombinedLogger, ConfigBuilder, format_description, LevelPadding, TerminalMode, TermLogger, WriteLogger};
+use simplelog::{format_description, ColorChoice, CombinedLogger, ConfigBuilder, LevelPadding, TermLogger, TerminalMode, WriteLogger};
 #[cfg(windows)]
 use winapi::um::wincon::{AttachConsole, FreeConsole, ATTACH_PARENT_PROCESS};
 extern crate lazy_static;
@@ -22,12 +22,12 @@ use std::process::exit;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::thread::JoinHandle;
 
+#[cfg(windows)]
+use crate::win_service::start_service;
 use ruvname::event::Event;
 use ruvname::eventbus::{post, register};
 use ruvname::keystore::create_key;
 use ruvname::{dns_utils, Block, Bytes, Chain, Context, Keystore, Miner, Network, Settings, Transaction, DB_NAME, ORIGIN_DIFFICULTY};
-#[cfg(windows)]
-use crate::win_service::start_service;
 
 #[cfg(feature = "webgui")]
 mod web_ui;
@@ -78,7 +78,7 @@ fn main() {
 
     let opt_matches = match opts.parse(&args[1..]) {
         Ok(m) => m,
-        Err(f) => panic!("{}", f.to_string())
+        Err(f) => panic!("{}", f.to_string()),
     };
 
     if opt_matches.opt_present("h") {
@@ -144,8 +144,7 @@ fn main() {
     };
 
     let mut no_gui = opt_matches.opt_present("n");
-    if !cfg!(feature = "webgui")
-    {
+    if !cfg!(feature = "webgui") {
         no_gui = true;
     }
 
@@ -178,7 +177,9 @@ fn main() {
                         f.write_all(data.as_bytes()).expect("Error writing status file!");
                         let _ = f.flush();
                     }
-                    Err(_) => { error!("Error writing status file!"); }
+                    Err(_) => {
+                        error!("Error writing status file!");
+                    }
                 }
             }
             true
@@ -311,22 +312,21 @@ pub fn start_services(settings: &Settings, context: &Arc<Mutex<Context>>) -> (bo
         }
     }
 
-    let dns_server_ok = if settings.dns.threads > 0 {
-        dns_utils::start_dns_server(&context, &settings)
-    } else {
-        true
-    };
+    let dns_server_ok = if settings.dns.threads > 0 { dns_utils::start_dns_server(&context, &settings) } else { true };
 
     let mut miner_obj = Miner::new(Arc::clone(&context));
     miner_obj.start_mining_thread();
     let miner: Arc<Mutex<Miner>> = Arc::new(Mutex::new(miner_obj));
 
     let mut network = Network::new(Arc::clone(&context));
-    let network = thread::Builder::new().name(String::from("Network")).spawn(move || {
-        // Give UI some time to appear :)
-        thread::sleep(Duration::from_millis(1000));
-        network.start();
-    }).expect("Could not start network thread!");
+    let network = thread::Builder::new()
+        .name(String::from("Network"))
+        .spawn(move || {
+            // Give UI some time to appear :)
+            thread::sleep(Duration::from_millis(1000));
+            network.start();
+        })
+        .expect("Could not start network thread!");
     (dns_server_ok, miner, network)
 }
 
@@ -340,7 +340,8 @@ fn setup_logger(opt_matches: &Matches, console_attached: bool) {
         level = LevelFilter::Trace;
     }
     let mut builder = ConfigBuilder::new();
-    let config = builder.add_filter_ignore_str("mio::poll")
+    let config = builder
+        .add_filter_ignore_str("mio::poll")
         .add_filter_ignore_str("rustls::client")
         .add_filter_ignore_str("ureq::")
         .set_thread_level(LevelFilter::Error)
@@ -413,11 +414,7 @@ mod tests {
 
     #[test]
     fn record_to_string() {
-        let record = DnsRecord::A {
-            domain: "google.com".to_string(),
-            addr: "127.0.0.1".parse().unwrap(),
-            ttl: TransientTtl(300)
-        };
+        let record = DnsRecord::A { domain: "google.com".to_string(), addr: "127.0.0.1".parse().unwrap(), ttl: TransientTtl(300) };
         println!("Record is {:?}", &record);
         println!("Record in JSON is {}", serde_json::to_string(&record).unwrap());
     }

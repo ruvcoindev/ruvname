@@ -20,7 +20,7 @@ pub struct Settings {
     #[serde(default)]
     pub dns: Dns,
     #[serde(default)]
-    pub mining: Mining
+    pub mining: Mining,
 }
 
 impl Settings {
@@ -34,7 +34,7 @@ impl Settings {
                 }
                 None
             }
-            Err(..) => None
+            Err(..) => None,
         }
     }
 
@@ -55,7 +55,7 @@ impl Default for Settings {
             check_blocks: default_check_blocks(),
             net: Net::default(),
             dns: Default::default(),
-            mining: Mining::default()
+            mining: Mining::default(),
         }
     }
 }
@@ -70,7 +70,7 @@ pub struct Dns {
     #[serde(default = "default_dns_bootstraps")]
     pub bootstraps: Vec<String>,
     #[serde(default)]
-    pub hosts: Vec<String>
+    pub hosts: Vec<String>,
 }
 
 impl Default for Dns {
@@ -80,7 +80,7 @@ impl Default for Dns {
             threads: 20,
             forwarders: vec![String::from("94.140.14.14:53"), String::from("94.140.15.15:53")],
             bootstraps: default_dns_bootstraps(),
-            hosts: Vec::new()
+            hosts: Vec::new(),
         }
     }
 }
@@ -90,7 +90,7 @@ pub struct Mining {
     #[serde(default)]
     pub threads: usize,
     #[serde(default)]
-    pub lower: bool
+    pub lower: bool,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -102,16 +102,19 @@ pub struct Net {
     #[serde(default)]
     pub public: bool,
     #[serde(default)]
-    pub ruvchain_only: bool
+    pub ruvchain_only: bool,
 }
 
 impl Default for Net {
     fn default() -> Self {
         Net {
-            peers: vec![String::from("[fa00:4715:66fa:2bd:3032:b5d1:e86f:239c]:6890"), String::from("[fa01:f0b1:4e8:515f:214c:b9e6:e1fd:d017]:6890")],
+            peers: vec![
+                String::from("[fa00:4715:66fa:2bd:3032:b5d1:e86f:239c]:6890"),
+                String::from("[fa01:f0b1:4e8:515f:214c:b9e6:e1fd:d017]:6890"),
+            ],
             listen: String::from("[::]:6890"),
             public: true,
-            ruvchain_only: false
+            ruvchain_only: false,
         }
     }
 }

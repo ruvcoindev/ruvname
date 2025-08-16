@@ -175,7 +175,26 @@
 
                 <div id="content" class="content">
                     <main>
-                        <h1 id="Блокчейн"><a class="header" href="#Блокчейн">Блокчейн</a></h1>
+                        <p>cat &gt; book/src/api/blocks.md &lt;&lt; 'EOF'</p>
+<h2 id="-Блокчейн-api"><a class="header" href="#-Блокчейн-api">📦 Блокчейн API</a></h2>
+<h3 id="get-blocks"><a class="header" href="#get-blocks"><code>GET /blocks</code></a></h3>
+<p>Возвращает последние блоки.</p>
+<h4 id="Параметры"><a class="header" href="#Параметры">Параметры</a></h4>
+<ul>
+<li><code>limit</code> (int, опционально) — количество, по умолчанию 10</li>
+<li><code>offset</code> (int, опционально) — смещение</li>
+</ul>
+<h4 id="Ответ"><a class="header" href="#Ответ">Ответ</a></h4>
+<pre><code class="language-json">[
+  {
+    "height": 150,
+    "hash": "a1b2c3...",
+    "timestamp": 1723700000,
+    "tx_count": 1,
+    "difficulty": 24
+  }
+]
+</code></pre>
 
                     </main>
 

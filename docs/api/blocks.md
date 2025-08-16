@@ -1,4 +1,3 @@
-cat > book/src/api/blocks.md << 'EOF'
 ## 📦 Блокчейн API
 
 ### `GET /blocks`

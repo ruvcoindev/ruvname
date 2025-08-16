@@ -175,7 +175,27 @@
 
                 <div id="content" class="content">
                     <main>
-                        <h1 id="javascript"><a class="header" href="#javascript">JavaScript</a></h1>
+                        <h1 id="-javascript-Пример"><a class="header" href="#-javascript-Пример">🟨 JavaScript Пример</a></h1>
+<pre><code class="language-html">&lt;!DOCTYPE html&gt;
+&lt;html&gt;
+&lt;head&gt;
+  &lt;title&gt;RUVNAME JS Client&lt;/title&gt;
+&lt;/head&gt;
+&lt;body&gt;
+  &lt;button onclick="getStatus()"&gt;Получить статус&lt;/button&gt;
+  &lt;pre id="output"&gt;...&lt;/pre&gt;
+  &lt;script&gt;
+    function getStatus() {
+      fetch("http://127.0.0.1:5311/status")
+        .then(r =&gt; r.json())
+        .then(data =&gt; {
+          document.getElementById("output").textContent = JSON.stringify(data, null, 2);
+        });
+    }
+  &lt;/script&gt;
+&lt;/body&gt;
+&lt;/html&gt;
+</code></pre>
 
                     </main>
 

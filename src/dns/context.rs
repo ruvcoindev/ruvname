@@ -7,9 +7,9 @@ use derive_more::{Display, Error, From};
 
 use crate::dns::authority::Authority;
 use crate::dns::cache::SynchronizedCache;
-use crate::dns::client::{DnsClient, DnsNetworkClient};
 #[cfg(feature = "doh")]
 use crate::dns::client::HttpsDnsClient;
+use crate::dns::client::{DnsClient, DnsNetworkClient};
 use crate::dns::filter::DnsFilter;
 use crate::dns::resolve::{DnsResolver, ForwardingDnsResolver, RecursiveDnsResolver};
 
@@ -17,14 +17,14 @@ use crate::dns::resolve::{DnsResolver, ForwardingDnsResolver, RecursiveDnsResolv
 pub enum ContextError {
     Authority(crate::dns::authority::AuthorityError),
     Client(crate::dns::client::ClientError),
-    Io(std::io::Error)
+    Io(std::io::Error),
 }
 
 type Result<T> = std::result::Result<T, ContextError>;
 
 pub struct ServerStatistics {
     pub tcp_query_count: AtomicUsize,
-    pub udp_query_count: AtomicUsize
+    pub udp_query_count: AtomicUsize,
 }
 
 impl ServerStatistics {
@@ -39,7 +39,7 @@ impl ServerStatistics {
 
 pub enum ResolveStrategy {
     Recursive,
-    Forward { upstreams: Vec<String> }
+    Forward { upstreams: Vec<String> },
 }
 
 pub struct ServerContext {
@@ -56,7 +56,7 @@ pub struct ServerContext {
     pub enable_tcp: bool,
     pub enable_api: bool,
     pub statistics: ServerStatistics,
-    pub zones_dir: &'static str
+    pub zones_dir: &'static str,
 }
 
 impl Default for ServerContext {
@@ -87,7 +87,7 @@ impl ServerContext {
             enable_tcp: true,
             enable_api: false,
             statistics: ServerStatistics { tcp_query_count: AtomicUsize::new(0), udp_query_count: AtomicUsize::new(0) },
-            zones_dir: "zones"
+            zones_dir: "zones",
         }
     }
 
@@ -108,9 +108,7 @@ impl ServerContext {
     pub fn create_resolver(&self, ptr: Arc<ServerContext>) -> Box<dyn DnsResolver> {
         match self.resolve_strategy {
             ResolveStrategy::Recursive => Box::new(RecursiveDnsResolver::new(ptr)),
-            ResolveStrategy::Forward { ref upstreams } => {
-                Box::new(ForwardingDnsResolver::new(ptr, upstreams.clone()))
-            }
+            ResolveStrategy::Forward { ref upstreams } => Box::new(ForwardingDnsResolver::new(ptr, upstreams.clone())),
         }
     }
 }
@@ -141,7 +139,7 @@ pub mod tests {
             enable_tcp: true,
             enable_api: false,
             statistics: ServerStatistics { tcp_query_count: AtomicUsize::new(0), udp_query_count: AtomicUsize::new(0) },
-            zones_dir: "zones"
+            zones_dir: "zones",
         })
     }
 }

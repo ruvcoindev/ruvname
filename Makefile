@@ -7,9 +7,16 @@
 BINARY = ruvname
 CONFIG = ruvname.toml
 LOG = ruvname.log
+INSTALL_DIR = /usr/local/bin
+CONFIG_DIR = /etc
+SYSTEMD_DIR = /etc/systemd/system
 
 # === Цели ===
-.PHONY: build build-nogui build-gui run run-nogui run-gui install clean release test help
+.PHONY: build build-nogui build-gui run run-nogui run-gui install uninstall clean release test help
+.PHONY: docs serve docs-check docs-publish
+.PHONY: generate-config check-deps
+.PHONY: python-deps run-python-example
+.PHONY: format ci
 
 # === Сборка ===
 
@@ -45,17 +52,34 @@ run-gui: build-gui
 	@echo "🚀 Запуск ruvname (GUI)..."
 	./target/release/$(BINARY)
 
-# === Установка ===
+# === Установка / Удаление ===
 
 ## Установить в систему
 install: build
 	@echo "📦 Установка в /usr/local/bin..."
-	@echo "   → /usr/local/bin/$(BINARY)"
-	@echo "   → /etc/$(CONFIG)"
-	sudo cp target/release/$(BINARY) /usr/local/bin/
-	sudo mkdir -p /etc
-	sudo cp $(CONFIG) /etc/$(CONFIG) || echo "⚠️  Конфиг не найден, сгенерируйте: make generate-config"
-	@echo "✅ Установлено: /usr/local/bin/$(BINARY)"
+	@echo "   → $(INSTALL_DIR)/$(BINARY)"
+	@echo "   → $(CONFIG_DIR)/$(CONFIG)"
+	sudo cp target/release/$(BINARY) $(INSTALL_DIR)/
+	sudo mkdir -p $(CONFIG_DIR)
+	sudo cp $(CONFIG) $(CONFIG_DIR)/$(CONFIG) || echo "⚠️  Конфиг не найден, сгенерируйте: make generate-config"
+	sudo cp contrib/systemd/ruvname.service $(SYSTEMD_DIR)/
+	sudo cp contrib/systemd/ruvname-default-config.service $(SYSTEMD_DIR)/
+	sudo systemctl daemon-reload
+	sudo systemctl enable ruvname || true
+	sudo systemctl start ruvname || true
+	@echo "✅ Установлено. Управление: sudo systemctl {start|stop|status} ruvname"
+
+## Удалить из системы
+uninstall:
+	@echo "🗑️  Удаление RUVNAME..."
+	sudo systemctl stop ruvname || true
+	sudo systemctl disable ruvname || true
+	sudo rm -f $(INSTALL_DIR)/$(BINARY)
+	sudo rm -f $(CONFIG_DIR)/$(CONFIG)
+	sudo rm -f $(SYSTEMD_DIR)/ruvname.service
+	sudo rm -f $(SYSTEMD_DIR)/ruvname-default-config.service
+	sudo systemctl daemon-reload
+	@echo "✅ Удалено"
 
 # === Тесты ===
 
@@ -73,6 +97,36 @@ clean:
 	rm -f $(LOG) 2>/dev/null || true
 	rm -f $(CONFIG).backup.* 2>/dev/null || true
 
+# === Форматирование кода ===
+
+## Отформатировать код с помощью rustfmt
+format:
+	@echo "🎨 Форматирование кода через rustfmt..."
+	@if ! command -v rustfmt >/dev/null; then \
+		echo "❌ rustfmt не установлен. Установите: rustup component add rustfmt"; \
+		exit 1; \
+	fi
+	cargo fmt --check
+	@echo "✅ Проверка форматирования прошла успешно"
+
+## Применить форматирование
+format-fix:
+	@echo "🎨 Применение форматирования..."
+	cargo fmt
+
+# === CI (локальный тест CI/CD) ===
+
+## Запустить локальный CI (проверка формата, тесты, сборка)
+ci:
+	@echo "🔧 Запуск локального CI..."
+	make check-deps
+	make format
+	make test
+	make build-nogui
+	make build-gui
+	make docs
+	@echo "✅ CI: Все проверки пройдены"
+
 # === Релиз (мультиархитектура) ===
 
 ## Собрать .deb, .zip, .dmg для всех платформ
@@ -82,8 +136,6 @@ release:
 	bash contrib/deb/build-multiarch.sh
 
 # === Документация ===
-
-.PHONY: docs serve docs-check
 
 ## Сгенерировать документацию (mdbook)
 docs: docs-check
@@ -115,7 +167,7 @@ generate-config:
 ## Проверить зависимости
 check-deps:
 	@echo "🔍 Проверка зависимостей..."
-	@for cmd in cargo bash docker upx; do \
+	@for cmd in cargo make bash docker upx rustfmt mdbook git; do \
 		if ! command -v $$cmd >/dev/null; then \
 			echo "❌ $$cmd не установлен"; \
 			exit 1; \
@@ -123,10 +175,7 @@ check-deps:
 	done
 	@echo "✅ Все зависимости установлены"
 
-
 # === Публикация документации ===
-
-.PHONY: docs-publish
 
 ## Опубликовать документацию на GitHub Pages
 docs-publish: docs
@@ -162,7 +211,7 @@ docs-publish: docs
 	@echo "📦 Копируем book/book/html/ -> корень..."
 	@cp -r book/book/html/* . || (echo "❌ Не удалось скопировать book/book/html/"; exit 1)
 
-	# Добавляем .nojekyll (чтобы работали файлы с подчёркиванием, как _book)
+	# Добавляем .nojekyll
 	@echo "" > .nojekyll
 
 	# Коммит и пуш
@@ -171,7 +220,6 @@ docs-publish: docs
 	@git config user.name "Automated CI" || true
 	@git config user.email "ci@ruv.name" || true
 	@git commit -m "docs: обновлено на $(shell date '+%Y-%m-%d %H:%M:%S') из $$CURRENT_BRANCH"
-
 	@echo "🚀 Публикация на GitHub Pages..."
 	@git push origin gh-pages --force
 
@@ -183,7 +231,20 @@ docs-publish: docs
 	@echo "   Откройте: https://$(shell git config --get remote.origin.url | sed -E 's/.*github.com[/:]([^/]+)\\/(.+).git/\\1.github.io\\/\\2/' | sed 's/\\.git$$//')"
 	@echo ""
 
+# === Python примеры ===
 
+## Создать виртуальное окружение и установить зависимости
+python-deps:
+	@echo "📦 Создание виртуального окружения..."
+	python3 -m venv venv
+	@echo "📦 Установка зависимостей..."
+	venv/bin/pip install -r requirements.txt
+	@echo "✅ Готово. Активируйте: source venv/bin/activate"
+
+## Запустить Python-пример
+run-python-example: python-deps
+	@echo "🚀 Запуск Python-примера..."
+	venv/bin/python book/src/examples/python_client.py
 
 # === Помощь ===
 
@@ -201,13 +262,20 @@ help:
 	@echo "  make run-nogui         - Запустить без GUI"
 	@echo "  make run-gui           - Запустить с GUI"
 	@echo ""
-	@echo "  make install           - Установить в /usr/local/bin"
+	@echo "  make install           - Установить в систему"
+	@echo "  make uninstall         - Удалить из системы"
 	@echo "  make generate-config   - Сгенерировать ruvname.toml"
 	@echo "  make test              - Запустить тесты"
 	@echo "  make clean             - Очистить"
+	@echo "  make format            - Проверить форматирование (rustfmt)"
+	@echo "  make format-fix        - Применить форматирование"
+	@echo "  make ci                - Запустить локальный CI"
 	@echo "  make release           - Собрать .deb, .zip, .dmg"
 	@echo "  make docs              - Собрать документацию (mdbook)"
 	@echo "  make serve             - Запустить локальный сервер документации"
+	@echo "  make docs-publish      - Опубликовать документацию на GitHub Pages"
 	@echo "  make check-deps        - Проверить зависимости"
+	@echo "  make python-deps       - Установить Python зависимости"
+	@echo "  make run-python-example - Запустить Python-пример"
 	@echo "  make help              - Показать эту справку"
 	@echo ""

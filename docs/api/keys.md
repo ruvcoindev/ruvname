@@ -1,4 +1,3 @@
-cat > book/src/api/keys.md << 'EOF'
 ## 🔑 Ключи API
 
 ### `POST /new_key`

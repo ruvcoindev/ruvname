@@ -8,6 +8,9 @@ use std::sync::{Arc, Mutex, MutexGuard};
 use std::thread;
 use std::time::{Duration, Instant};
 
+use chrono::{DateTime, Local, Utc};
+#[allow(unused_imports)]
+use log::{debug, error, info, trace, warn, LevelFilter};
 use ruvname::blockchain::transaction::DomainData;
 use ruvname::blockchain::types::MineResult;
 use ruvname::commons::*;
@@ -17,9 +20,6 @@ use ruvname::event::Event;
 use ruvname::eventbus::{post, register};
 use ruvname::miner::Miner;
 use ruvname::{keystore, Block, Bytes, Context, Keystore, Transaction};
-use chrono::{DateTime, Local, Utc};
-#[allow(unused_imports)]
-use log::{debug, error, info, trace, warn, LevelFilter};
 use serde::{Deserialize, Serialize};
 use web_view::Content;
 use Cmd::*;
@@ -46,18 +46,36 @@ pub fn run_interface(context: Arc<Mutex<Context>>, miner: Arc<Mutex<Miner>>) {
         .invoke_handler(|web_view, arg| {
             debug!("Command {}", arg);
             match serde_json::from_str(arg).unwrap() {
-                Loaded => { action_loaded(&context, web_view); }
-                LoadKey => { action_load_key(&context, web_view); }
-                CreateKey => { keystore::create_key(Arc::clone(&context)); }
-                SaveKey => { action_save_key(&context); }
-                SelectKey { index } => { action_select_key(&context, web_view, index); }
-                CheckRecord { data } => { action_check_record(web_view, data); }
-                CheckDomain { name } => { action_check_domain(&context, web_view, name); }
+                Loaded => {
+                    action_loaded(&context, web_view);
+                }
+                LoadKey => {
+                    action_load_key(&context, web_view);
+                }
+                CreateKey => {
+                    keystore::create_key(Arc::clone(&context));
+                }
+                SaveKey => {
+                    action_save_key(&context);
+                }
+                SelectKey { index } => {
+                    action_select_key(&context, web_view, index);
+                }
+                CheckRecord { data } => {
+                    action_check_record(web_view, data);
+                }
+                CheckDomain { name } => {
+                    action_check_domain(&context, web_view, name);
+                }
                 MineDomain { name, data, signing, encryption, renewal } => {
                     action_create_domain(Arc::clone(&context), Arc::clone(&miner), web_view, name, data, signing, encryption, renewal);
                 }
-                TransferDomain { name, owner} => { info!("Transferring '{name}' to '{owner}'"); }
-                StopMining => { post(Event::ActionStopMining); }
+                TransferDomain { name, owner } => {
+                    info!("Transferring '{name}' to '{owner}'");
+                }
+                StopMining => {
+                    post(Event::ActionStopMining);
+                }
                 Open { link } => {
                     if open::that(&link).is_err() {
                         show_warning(web_view, "Something wrong, I can't open the link 😢");
@@ -87,15 +105,13 @@ fn run_interface_loop(interface: &mut WebView<()>) {
                 thread::sleep(Duration::from_millis(100));
                 break;
             }
-            Some(result) => {
-                match result {
-                    Ok(_) => {}
-                    Err(_) => {
-                        error!("Something wrong with webview, exiting");
-                        break;
-                    }
+            Some(result) => match result {
+                Ok(_) => {}
+                Err(_) => {
+                    error!("Something wrong with webview, exiting");
+                    break;
                 }
-            }
+            },
         }
         if start.elapsed().as_millis() > 1 {
             thread::sleep(pause);
@@ -128,7 +144,7 @@ fn action_check_domain(context: &Arc<Mutex<Context>>, web_view: &mut WebView<()>
         let name = name.to_lowercase();
         let available = match c.chain.can_mine_domain(c.chain.get_height(), &name, &keystore.get_public()) {
             MineResult::Fine => true,
-            _ => false
+            _ => false,
         };
         web_view.eval(&format!("domainAvailable({})", available)).expect("Error evaluating!");
     }
@@ -175,28 +191,26 @@ fn action_load_key(context: &Arc<Mutex<Context>>, web_view: &mut WebView<()>) {
     let result = tfd::open_file_dialog("Open keys file", "", Some((&["*.key", "*.toml"], "Key files")));
     match result {
         None => {}
-        Some(file_name) => {
-            match Keystore::from_file(&file_name, "") {
-                None => {
-                    error!("Error loading keystore '{}'!", &file_name);
-                    show_warning(web_view, "Error loading key!<br>Key cannot be loaded or its difficulty is not enough.");
-                    event_fail(web_view, &format!("Error loading key from \\'{}\\'!", &file_name));
-                }
-                Some(keystore) => {
-                    info!("Loaded keystore with keys: {:?}, {:?}", &keystore.get_public(), &keystore.get_encryption_public());
-                    let path = keystore.get_path().to_owned();
-                    let public = keystore.get_public().to_string();
-                    let hash = keystore.get_hash().to_string();
-                    post(Event::KeyLoaded { path, public, hash });
+        Some(file_name) => match Keystore::from_file(&file_name, "") {
+            None => {
+                error!("Error loading keystore '{}'!", &file_name);
+                show_warning(web_view, "Error loading key!<br>Key cannot be loaded or its difficulty is not enough.");
+                event_fail(web_view, &format!("Error loading key from \\'{}\\'!", &file_name));
+            }
+            Some(keystore) => {
+                info!("Loaded keystore with keys: {:?}, {:?}", &keystore.get_public(), &keystore.get_encryption_public());
+                let path = keystore.get_path().to_owned();
+                let public = keystore.get_public().to_string();
+                let hash = keystore.get_hash().to_string();
+                post(Event::KeyLoaded { path, public, hash });
 
-                    if !context.lock().unwrap().select_key_by_public(&keystore.get_public()) {
-                        context.lock().unwrap().add_keystore(keystore);
-                    } else {
-                        warn!("This key is already loaded!");
-                    }
+                if !context.lock().unwrap().select_key_by_public(&keystore.get_public()) {
+                    context.lock().unwrap().add_keystore(keystore);
+                } else {
+                    warn!("This key is already loaded!");
                 }
             }
-        }
+        },
     }
 }
 
@@ -207,7 +221,7 @@ fn action_loaded(context: &Arc<Mutex<Context>>, web_view: &mut WebView<()>) {
     let threads = context.lock().unwrap().settings.mining.threads;
     let threads = match threads {
         0 => num_cpus::get(),
-        _ => threads
+        _ => threads,
     };
     let status = Arc::new(Mutex::new(UiStatus::new(threads)));
     let context_copy = Arc::clone(context);
@@ -230,8 +244,7 @@ fn action_loaded(context: &Arc<Mutex<Context>>, web_view: &mut WebView<()>) {
                     s.push_str(" showSuccess('New key mined successfully! Save it to a safe place!')");
                     s
                 }
-                Event::KeyLoaded { path, public, hash } |
-                Event::KeySaved { path, public, hash } => {
+                Event::KeyLoaded { path, public, hash } | Event::KeySaved { path, public, hash } => {
                     load_domains(&mut context, &handle);
                     send_keys_to_ui(&context, &handle);
                     format!("keystoreChanged('{}', '{}', '{}');", &path, &public, &hash)
@@ -271,7 +284,12 @@ fn action_loaded(context: &Arc<Mutex<Context>>, web_view: &mut WebView<()>) {
                     }
                     status.set_thread_speed(thread, speed);
                     if thread as usize == threads - 1 {
-                        format!("setLeftStatusBarText('Mining speed {} H/s, max found difficulty {}/{}.'); showMiningIndicator(true, false);", status.get_speed(), status.max_diff, target_diff)
+                        format!(
+                            "setLeftStatusBarText('Mining speed {} H/s, max found difficulty {}/{}.'); showMiningIndicator(true, false);",
+                            status.get_speed(),
+                            status.max_diff,
+                            target_diff
+                        )
                     } else {
                         String::new()
                     }
@@ -320,13 +338,11 @@ fn action_loaded(context: &Arc<Mutex<Context>>, web_view: &mut WebView<()>) {
                     String::new() // Nothing
                 }
                 Event::Error { text } => format!("showError('{}')", &text),
-                _ => String::new()
+                _ => String::new(),
             };
 
             if !eval.is_empty() {
-                handle.dispatch(move |web_view| {
-                    web_view.eval(&eval.replace("\\", "\\\\"))
-                }).expect("Error dispatching!");
+                handle.dispatch(move |web_view| web_view.eval(&eval.replace("\\", "\\\\"))).expect("Error dispatching!");
             }
         });
         true
@@ -356,9 +372,7 @@ fn action_loaded(context: &Arc<Mutex<Context>>, web_view: &mut WebView<()>) {
 }
 
 fn load_domains(context: &mut MutexGuard<Context>, handle: &Handle<()>) {
-    let _ = handle.dispatch(move |web_view|{
-        web_view.eval("clearMyDomains();")
-    });
+    let _ = handle.dispatch(move |web_view| web_view.eval("clearMyDomains();"));
     let domains = context.chain.get_my_domains(context.get_keystore());
     let mut domains = domains.iter().map(|(_, d)| d).collect::<Vec<_>>();
     domains.sort_by(|a, b| a.0.cmp(&b.0));
@@ -366,13 +380,9 @@ fn load_domains(context: &mut MutexGuard<Context>, handle: &Handle<()>) {
         let d = serde_json::to_string(&data).unwrap();
         let d = d.replace("'", "\\'").replace("\\n", "\\\\n").replace("\"", "\\\"");
         let command = format!("addMyDomain('{}', {}, {}, '{}');", &domain, timestamp, timestamp + DOMAIN_LIFETIME, &d);
-        let _ = handle.dispatch(move |web_view|{
-            web_view.eval(&command)
-        });
+        let _ = handle.dispatch(move |web_view| web_view.eval(&command));
     }
-    let _ = handle.dispatch(move |web_view|{
-        web_view.eval("refreshMyDomains();")
-    });
+    let _ = handle.dispatch(move |web_view| web_view.eval("refreshMyDomains();"));
 }
 
 fn send_keys_to_ui(context: &MutexGuard<Context>, handle: &Handle<()>) {
@@ -394,7 +404,10 @@ fn send_keys_to_ui(context: &MutexGuard<Context>, handle: &Handle<()>) {
     }
 }
 
-fn action_create_domain(context: Arc<Mutex<Context>>, miner: Arc<Mutex<Miner>>, web_view: &mut WebView<()>, name: String, data: String, signing: String, encryption: String, renewal: bool) {
+fn action_create_domain(
+    context: Arc<Mutex<Context>>, miner: Arc<Mutex<Miner>>, web_view: &mut WebView<()>, name: String, data: String, signing: String,
+    encryption: String, renewal: bool,
+) {
     debug!("Creating domain with data: {}", &data);
     let c = Arc::clone(&context);
     let context = context.lock().unwrap();
@@ -494,7 +507,9 @@ fn show_warning(web_view: &mut WebView<()>, text: &str) {
     let str = text.replace('\'', "\\'");
     match web_view.eval(&format!("showWarning('{}');", &str)) {
         Ok(_) => {}
-        Err(_) => { warn!("Error showing warning!"); }
+        Err(_) => {
+            warn!("Error showing warning!");
+        }
     }
 }
 
@@ -503,7 +518,9 @@ fn show_success(web_view: &mut WebView<()>, text: &str) {
     let str = text.replace('\'', "\\'");
     match web_view.eval(&format!("showSuccess('{}');", &str)) {
         Ok(_) => {}
-        Err(_) => { warn!("Error showing success!"); }
+        Err(_) => {
+            warn!("Error showing success!");
+        }
     }
 }
 
@@ -525,33 +542,25 @@ fn event_fail(web_view: &mut WebView<()>, message: &str) {
 #[allow(dead_code)]
 fn event_handle_info(handle: &Handle<()>, message: &str) {
     let message = message.to_owned();
-    let _ = handle.dispatch(move |web_view|{
-        web_view.eval(&format_event_now("info", &message))
-    });
+    let _ = handle.dispatch(move |web_view| web_view.eval(&format_event_now("info", &message)));
 }
 
 #[allow(dead_code)]
 fn event_handle_warn(handle: &Handle<()>, message: &str) {
     let message = message.to_owned();
-    let _ = handle.dispatch(move |web_view|{
-        web_view.eval(&format_event_now("warn", &message))
-    });
+    let _ = handle.dispatch(move |web_view| web_view.eval(&format_event_now("warn", &message)));
 }
 
 #[allow(dead_code)]
 fn event_handle_fail(handle: &Handle<()>, message: &str) {
     let message = message.to_owned();
-    let _ = handle.dispatch(move |web_view|{
-        web_view.eval(&format_event_now("fail", &message))
-    });
+    let _ = handle.dispatch(move |web_view| web_view.eval(&format_event_now("fail", &message)));
 }
 
 #[allow(dead_code)]
 fn event_handle_luck(handle: &Handle<()>, message: &str) {
     let message = message.to_owned();
-    let _ = handle.dispatch(move |web_view|{
-        web_view.eval(&format_event_now("luck", &message))
-    });
+    let _ = handle.dispatch(move |web_view| web_view.eval(&format_event_now("luck", &message)));
 }
 
 #[allow(dead_code)]
@@ -565,7 +574,10 @@ fn format_event_now(kind: &str, message: &str) -> String {
 }
 
 #[allow(clippy::too_many_arguments)]
-fn create_domain(context: Arc<Mutex<Context>>, miner: Arc<Mutex<Miner>>, class: &str, name: &str, mut data: DomainData, difficulty: u32, keystore: &Keystore, signing: Bytes, encryption: Bytes, renewal: bool) {
+fn create_domain(
+    context: Arc<Mutex<Context>>, miner: Arc<Mutex<Miner>>, class: &str, name: &str, mut data: DomainData, difficulty: u32,
+    keystore: &Keystore, signing: Bytes, encryption: Bytes, renewal: bool,
+) {
     let name = name.to_owned();
     let encrypted = CryptoBox::encrypt(encryption.as_slice(), name.as_bytes()).expect("Error encrypting domain name!");
     data.encrypted = Bytes::from_bytes(&encrypted);
@@ -597,7 +609,7 @@ pub enum Cmd {
     MineDomain { name: String, data: String, signing: String, encryption: String, renewal: bool },
     TransferDomain { name: String, owner: String },
     StopMining,
-    Open { link: String }
+    Open { link: String },
 }
 
 struct UiStatus {
@@ -606,12 +618,12 @@ struct UiStatus {
     pub synced_blocks: u64,
     pub sync_height: u64,
     pub max_diff: u32,
-    pub speed: Vec<u64>
+    pub speed: Vec<u64>,
 }
 
 impl UiStatus {
     fn new(threads: usize) -> Self {
-        let speed =vec![0; threads];
+        let speed = vec![0; threads];
         UiStatus { mining: false, syncing: false, synced_blocks: 0, sync_height: 0, max_diff: 0, speed }
     }
 
@@ -627,7 +639,7 @@ impl UiStatus {
 #[derive(Serialize)]
 struct KeysForJS {
     file_name: String,
-    public: String
+    public: String,
 }
 
 fn inline_style(s: &str) -> String {

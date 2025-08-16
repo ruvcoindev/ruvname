@@ -17,12 +17,12 @@ use crate::dns::context::ServerContext;
 use crate::dns::netutil::{read_packet_length, write_packet_length};
 use crate::dns::protocol::{DnsPacket, DnsRecord, QueryType, ResultCode};
 use crate::dns::resolve::DnsResolver;
-use lru::LruCache;
 use chrono::Utc;
+use lru::LruCache;
 
 #[derive(Debug, Display, From, Error)]
 pub enum ServerError {
-    Io(std::io::Error)
+    Io(std::io::Error),
 }
 
 type Result<T> = std::result::Result<T, ServerError>;
@@ -62,7 +62,9 @@ pub trait DnsServer {
 
 /// Utility function for resolving domains referenced in for example CNAME or SRV
 /// records. This usually spares the client from having to perform additional lookups.
-fn resolve_cnames(lookup_list: &[DnsRecord], results: &mut Vec<DnsPacket>, resolver: &mut Box<dyn DnsResolver>, qtype: QueryType, depth: u16) {
+fn resolve_cnames(
+    lookup_list: &[DnsRecord], results: &mut Vec<DnsPacket>, resolver: &mut Box<dyn DnsResolver>, qtype: QueryType, depth: u16,
+) {
     if depth > 10 {
         return;
     }
@@ -161,7 +163,7 @@ pub fn execute_query(context: Arc<ServerContext>, request: &DnsPacket) -> DnsPac
 /// a new thread is spawned to service the request asynchronously.
 pub struct DnsUdpServer {
     context: Arc<ServerContext>,
-    thread_count: usize
+    thread_count: usize,
 }
 
 impl DnsUdpServer {
@@ -229,53 +231,51 @@ impl DnsServer for DnsUdpServer {
         }
 
         // Start servicing requests
-        let _ = Builder::new()
-            .name("DnsUdpServer-incoming".into())
-            .spawn(move || {
-                let mut working_ids: LruCache<(SocketAddr, u16), i64> = LruCache::new(NonZeroUsize::new(256).unwrap());
-                loop {
-                    let _ = self.context.statistics.udp_query_count.fetch_add(1, Ordering::Release);
+        let _ = Builder::new().name("DnsUdpServer-incoming".into()).spawn(move || {
+            let mut working_ids: LruCache<(SocketAddr, u16), i64> = LruCache::new(NonZeroUsize::new(256).unwrap());
+            loop {
+                let _ = self.context.statistics.udp_query_count.fetch_add(1, Ordering::Release);
 
-                    // Read a query packet
-                    let mut req_buffer = BytePacketBuffer::new();
-                    let (_, src) = match socket.recv_from(&mut req_buffer.buf) {
-                        Ok(x) => x,
-                        Err(err) => {
-                            if let Some(code) = err.raw_os_error() {
-                                if code == 10004 || code == 10093 {
-                                    debug!("UDP service loop has finished");
-                                    break;
-                                }
+                // Read a query packet
+                let mut req_buffer = BytePacketBuffer::new();
+                let (_, src) = match socket.recv_from(&mut req_buffer.buf) {
+                    Ok(x) => x,
+                    Err(err) => {
+                        if let Some(code) = err.raw_os_error() {
+                            if code == 10004 || code == 10093 {
+                                debug!("UDP service loop has finished");
+                                break;
                             }
-                            debug!("Failed to read from UDP socket: {:?}", err);
-                            continue;
                         }
-                    };
-
-                    // Parse it
-                    let request = match DnsPacket::from_buffer(&mut req_buffer) {
-                        Ok(x) => x,
-                        Err(e) => {
-                            debug!("Failed to parse UDP query packet: {:?}", e);
-                            continue;
-                        }
-                    };
-                    // If we got a request resent in 100ms interval, then we just skip it
-                    let key = (src, request.header.id);
-                    let cur_time = Utc::now().timestamp_millis();
-                    if let Some(time) = working_ids.get(&key) {
-                        if time + 100 > cur_time {
-                            continue;
-                        }
+                        debug!("Failed to read from UDP socket: {:?}", err);
+                        continue;
                     }
-                    working_ids.put(key, cur_time);
+                };
 
-                    if let Err(e) = sender.send((src, request)) {
-                        warn!("Error sending work to DNS resolver threads! Error: {}", e);
+                // Parse it
+                let request = match DnsPacket::from_buffer(&mut req_buffer) {
+                    Ok(x) => x,
+                    Err(e) => {
+                        debug!("Failed to parse UDP query packet: {:?}", e);
+                        continue;
+                    }
+                };
+                // If we got a request resent in 100ms interval, then we just skip it
+                let key = (src, request.header.id);
+                let cur_time = Utc::now().timestamp_millis();
+                if let Some(time) = working_ids.get(&key) {
+                    if time + 100 > cur_time {
                         continue;
                     }
                 }
-            })?;
+                working_ids.put(key, cur_time);
+
+                if let Err(e) = sender.send((src, request)) {
+                    warn!("Error sending work to DNS resolver threads! Error: {}", e);
+                    continue;
+                }
+            }
+        })?;
 
         Ok(())
     }
@@ -285,7 +285,7 @@ impl DnsServer for DnsUdpServer {
 pub struct DnsTcpServer {
     context: Arc<ServerContext>,
     senders: Vec<Sender<TcpStream>>,
-    thread_count: usize
+    thread_count: usize,
 }
 
 impl DnsTcpServer {
@@ -310,7 +310,7 @@ impl DnsServer for DnsTcpServer {
                 loop {
                     let mut stream = match rx.recv() {
                         Ok(x) => x,
-                        Err(_) => continue
+                        Err(_) => continue,
                     };
 
                     let _ = context.statistics.tcp_query_count.fetch_add(1, Ordering::Release);
@@ -345,34 +345,32 @@ impl DnsServer for DnsTcpServer {
             })?;
         }
 
-        let _ = Builder::new()
-            .name("DnsTcpServer-incoming".into())
-            .spawn(move || {
-                for wrap_stream in socket.incoming() {
-                    let stream = match wrap_stream {
-                        Ok(stream) => stream,
-                        Err(err) => {
-                            if let Some(code) = err.raw_os_error() {
-                                if code == 10004 {
-                                    debug!("TCP service loop has finished");
-                                    break;
-                                }
+        let _ = Builder::new().name("DnsTcpServer-incoming".into()).spawn(move || {
+            for wrap_stream in socket.incoming() {
+                let stream = match wrap_stream {
+                    Ok(stream) => stream,
+                    Err(err) => {
+                        if let Some(code) = err.raw_os_error() {
+                            if code == 10004 {
+                                debug!("TCP service loop has finished");
+                                break;
                             }
-                            warn!("Failed to accept TCP connection: {:?}", err);
-                            continue;
                         }
-                    };
+                        warn!("Failed to accept TCP connection: {:?}", err);
+                        continue;
+                    }
+                };
 
-                    // Hand it off to a worker thread
-                    let thread_no = random::<usize>() % self.thread_count;
-                    match self.senders[thread_no].send(stream) {
-                        Ok(_) => {}
-                        Err(e) => {
-                            warn!("Failed to send TCP request for processing on thread {}: {}", thread_no, e);
-                        }
+                // Hand it off to a worker thread
+                let thread_no = random::<usize>() % self.thread_count;
+                match self.senders[thread_no].send(stream) {
+                    Ok(_) => {}
+                    Err(e) => {
+                        warn!("Failed to send TCP request for processing on thread {}: {}", thread_no, e);
                     }
                 }
-            })?;
+            }
+        })?;
 
         Ok(())
     }
@@ -408,30 +406,30 @@ mod tests {
                 packet.answers.push(DnsRecord::A {
                     domain: "google.com".to_string(),
                     addr: "127.0.0.1".parse::<Ipv4Addr>().unwrap(),
-                    ttl: TransientTtl(3600)
+                    ttl: TransientTtl(3600),
                 });
             } else if qname == "www.facebook.com" && qtype == QueryType::CNAME {
                 packet.answers.push(DnsRecord::CNAME {
                     domain: "www.facebook.com".to_string(),
                     host: "cdn.facebook.com".to_string(),
-                    ttl: TransientTtl(3600)
+                    ttl: TransientTtl(3600),
                 });
                 packet.answers.push(DnsRecord::A {
                     domain: "cdn.facebook.com".to_string(),
                     addr: "127.0.0.1".parse::<Ipv4Addr>().unwrap(),
-                    ttl: TransientTtl(3600)
+                    ttl: TransientTtl(3600),
                 });
             } else if qname == "www.microsoft.com" && qtype == QueryType::CNAME {
                 packet.answers.push(DnsRecord::CNAME {
                     domain: "www.microsoft.com".to_string(),
                     host: "cdn.microsoft.com".to_string(),
-                    ttl: TransientTtl(3600)
+                    ttl: TransientTtl(3600),
                 });
             } else if qname == "cdn.microsoft.com" && qtype == QueryType::A {
                 packet.answers.push(DnsRecord::A {
                     domain: "cdn.microsoft.com".to_string(),
                     addr: "127.0.0.1".parse::<Ipv4Addr>().unwrap(),
-                    ttl: TransientTtl(3600)
+                    ttl: TransientTtl(3600),
                 });
             } else {
                 packet.header.rescode = ResultCode::NXDOMAIN;
@@ -444,7 +442,7 @@ mod tests {
             Some(mut ctx) => {
                 ctx.resolve_strategy = ResolveStrategy::Forward { upstreams: vec![String::from("127.0.0.1:53")] };
             }
-            None => panic!()
+            None => panic!(),
         }
 
         // A successful resolve
@@ -456,7 +454,7 @@ mod tests {
                 DnsRecord::A { ref domain, .. } => {
                     assert_eq!("google.com", domain);
                 }
-                _ => panic!()
+                _ => panic!(),
             }
         };
 
@@ -469,14 +467,14 @@ mod tests {
                 DnsRecord::CNAME { ref domain, .. } => {
                     assert_eq!("www.facebook.com", domain);
                 }
-                _ => panic!()
+                _ => panic!(),
             }
 
             match res.answers[1] {
                 DnsRecord::A { ref domain, .. } => {
                     assert_eq!("cdn.facebook.com", domain);
                 }
-                _ => panic!()
+                _ => panic!(),
             }
         };
 
@@ -490,7 +488,7 @@ mod tests {
                 DnsRecord::CNAME { ref host, .. } => {
                     assert_eq!("cdn.microsoft.com", host);
                 }
-                _ => panic!()
+                _ => panic!(),
             }
         };
 
@@ -506,7 +504,7 @@ mod tests {
             Some(mut ctx) => {
                 ctx.allow_recursive = false;
             }
-            None => panic!()
+            None => panic!(),
         }
 
         // This should generate an error code, since recursive resolves are
@@ -534,7 +532,7 @@ mod tests {
             Some(mut ctx) => {
                 ctx.resolve_strategy = ResolveStrategy::Forward { upstreams: vec![String::from("127.0.0.1:53")] };
             }
-            None => panic!()
+            None => panic!(),
         }
 
         // We expect this to set the server failure rescode
