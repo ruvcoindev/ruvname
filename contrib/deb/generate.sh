@@ -1,89 +1,122 @@
-#!/bin/sh
+#!/bin/bash
 
-# This is a lazy script to create a .deb for Debian/Ubuntu. It installs
-# RUVNAME and enables it in systemd. You can give it the PKGARCH= argument
-# i.e. PKGARCH=i386 sh contrib/deb/generate.sh
+# Генерация .deb пакета для RUVNAME
+# Поддерживает: amd64, i686, arm64, armhf, mips, mipsel
+# Использует cross и fakeroot
 
-if [ `pwd` != `git rev-parse --show-toplevel` ]
-then
-  echo "You should run this script from the top-level directory of the git repo"
+set -euo pipefail
+
+# === Проверка, что скрипт запущен из корня репозитория ===
+if [ "$(pwd)" != "$(git rev-parse --show-toplevel)" ]; then
+  echo "❌ Ошибка: запускайте скрипт из корня репозитория"
   exit 1
 fi
 
-#PKGBRANCH=$(basename `git name-rev --name-only HEAD`)
-PKGNAME=$(sh contrib/semver/name.sh)
-PKGVERSION=$(sh contrib/semver/version.sh --bare)
-PKGARCH=${PKGARCH-amd64}
-PKGFILE=$PKGNAME-$PKGARCH-v$PKGVERSION-nogui.deb
-PKGREPLACES=ruvname
+# === Настройки по умолчанию ===
+PKGNAME=${PKGNAME:-ruvname}
+PKGVERSION=${PKGVERSION:-$(grep '^version' Cargo.toml | head -n1 | cut -d '"' -f2)}
+PKGARCH=${PKGARCH:-amd64}
+SUFFIX=${SUFFIX:-nogui}  # nogui или gui
+TARGET=${TARGET:-}
+FEATURES=${FEATURES:-doh}
+OUTPUT_DIR=${OUTPUT_DIR:-bin/deb}
 
-#if [ $PKGBRANCH = "master" ]; then
-#  PKGREPLACES=ruvname-develop
-#fi
+# === Маппинг архитектур → target ===
+case "$PKGARCH" in
+  "amd64")
+    TARGET="x86_64-unknown-linux-musl"
+    ;;
+  "i686")
+    TARGET="i686-unknown-linux-musl"
+    ;;
+  "arm64")
+    TARGET="aarch64-unknown-linux-musl"
+    ;;
+  "armhf")
+    TARGET="armv7-unknown-linux-musleabihf"
+    ;;
+  "mips")
+    TARGET="mips-unknown-linux-musl"
+    ;;
+  "mipsel")
+    TARGET="mipsel-unknown-linux-musl"
+    ;;
+  *)
+    echo "❌ Укажите PKGARCH: amd64, i686, arm64, armhf, mips, mipsel"
+    exit 1
+    ;;
+esac
 
-mkdir -p bin
-
-FEATURES="doh"
-if [ $PKGARCH = "mipsel" ]; then FEATURES=''
-elif [ $PKGARCH = "mips" ]; then FEATURES=''
+# === Проверка зависимостей ===
+if ! command -v cross >/dev/null; then
+  echo "❌ cross не установлен. Установите: cargo install cross"
+  exit 1
 fi
 
-TARGET=""
-# Building nogui versions only
-if [ $PKGARCH = "amd64" ]; then TARGET='x86_64-unknown-linux-musl'
-elif [ $PKGARCH = "i686" ]; then TARGET='i686-unknown-linux-musl'
-elif [ $PKGARCH = "mipsel" ]; then TARGET='mipsel-unknown-linux-musl'
-elif [ $PKGARCH = "mips" ]; then TARGET='mips-unknown-linux-musl'
-elif [ $PKGARCH = "armhf" ]; then TARGET='armv7-unknown-linux-musleabihf'
-elif [ $PKGARCH = "armlf" ]; then TARGET='arm-unknown-linux-musleabi'
-elif [ $PKGARCH = "arm64" ]; then TARGET='aarch64-unknown-linux-musl'
+if ! command -v fakeroot >/dev/null; then
+  echo "❌ fakeroot не установлен. Установите: sudo apt install fakeroot"
+  exit 1
+fi
+
+if ! command -v upx >/dev/null; then
+  echo "⚠️  UPX не установлен — сжатие пропущено"
+  COMPRESS=false
 else
-  echo "Specify PKGARCH=amd64,i686,mips,mipsel,armhf,armlf,arm64"
-  exit 1
+  COMPRESS=true
 fi
 
-cross build --release --no-default-features --features=$FEATURES --target $TARGET
-upx target/$TARGET/release/ruvname
-cp target/$TARGET/release/ruvname ./ruvname
-cp target/$TARGET/release/ruvname ./bin/ruvname-linux-$PKGARCH-v$PKGVERSION-nogui
+# === Подготовка ===
+echo "📦 Сборка .deb пакета: $PKGNAME-$PKGARCH-v$PKGVERSION-$SUFFIX.deb"
+echo "   Архитектура: $PKGARCH → $TARGET"
+echo "   Флаги: --no-default-features --features=$FEATURES"
 
-echo "Building $PKGFILE"
+# Создаём временную директорию
+TEMP_DIR=$(mktemp -d)
+trap 'rm -rf "$TEMP_DIR"' EXIT
 
-mkdir -p /tmp/$PKGNAME/
-mkdir -p /tmp/$PKGNAME/debian/
-mkdir -p /tmp/$PKGNAME/usr/bin/
-mkdir -p /tmp/$PKGNAME/etc/systemd/system/
+# Папка для артефактов
+mkdir -p "$OUTPUT_DIR"
 
-cat > /tmp/$PKGNAME/debian/changelog << EOF
-Please see https://github.com/ruvcoindev/ruvname/
-EOF
-echo 9 > /tmp/$PKGNAME/debian/compat
-cat > /tmp/$PKGNAME/debian/control << EOF
+# === Сборка бинарника ===
+echo "🛠 Сборка бинарника..."
+cross build --target "$TARGET" --release --no-default-features --features="$FEATURES"
+
+# Копируем и сжимаем
+cp "target/$TARGET/release/ruvname" "$TEMP_DIR/usr/bin/ruvname"
+if [ "$COMPRESS" = "true" ]; then
+  upx --best --lzma "$TEMP_DIR/usr/bin/ruvname"
+fi
+
+# === Структура пакета ===
+mkdir -p "$TEMP_DIR/DEBIAN"
+mkdir -p "$TEMP_DIR/etc/systemd/system"
+mkdir -p "$TEMP_DIR/var/lib/ruvname"
+
+# Копируем systemd-сервисы
+cp contrib/systemd/ruvname.service "$TEMP_DIR/etc/systemd/system/"
+cp contrib/systemd/ruvname-default-config.service "$TEMP_DIR/etc/systemd/system/"
+
+# === Создание control файла ===
+cat > "$TEMP_DIR/DEBIAN/control" << EOF
 Package: $PKGNAME
 Version: $PKGVERSION
 Section: contrib/net
 Priority: extra
 Architecture: $PKGARCH
-Replaces: $PKGREPLACES
-Conflicts: $PKGREPLACES
+Replaces: ruvname-develop, ruvname
+Conflicts: ruvname-develop, ruvname
 Maintainer: ruvcoindev <admin@ruvcha.in>
-Description: RUVNAME
- RUVNAME (RUVchain NAMEspace is an implementation of a Domain Name System
+Description: RUVNAME — Decentralized DNS on Blockchain
+ RUVNAME (RUVchain NAMEspace) is an implementation of a Domain Name System
  based on a small, slowly growing blockchain. It is lightweight, self-contained,
  supported on multiple platforms and contains DNS-resolver on its own to resolve domain records
  contained in blockchain and forward DNS requests of ordinary domain zones to upstream forwarders.
+ .
+ Supports zones: .ruv, .mesh, .node, .p2p, .tamb, .tmb, .dweb, .dht, .hub
 EOF
-cat > /tmp/$PKGNAME/debian/copyright << EOF
-Please see https://github.com/ruvcoindev/ruvname/
-EOF
-cat > /tmp/$PKGNAME/debian/docs << EOF
-Please see https://github.com/ruvcoindev/ruvname/
-EOF
-cat > /tmp/$PKGNAME/debian/install << EOF
-usr/bin/ruvname usr/bin
-etc/systemd/system/*.service etc/systemd/system
-EOF
-cat > /tmp/$PKGNAME/debian/postinst << EOF
+
+# === postinst — post-install script ===
+cat > "$TEMP_DIR/DEBIAN/postinst" << 'EOF'
 #!/bin/sh -e
 
 if ! getent group ruvname 2>&1 > /dev/null; then
@@ -97,8 +130,7 @@ fi
 mkdir -p /var/lib/ruvname
 chown ruvname:ruvname /var/lib/ruvname
 
-if [ -f /etc/ruvname.conf ];
-then
+if [ -f /etc/ruvname.conf ]; then
   mkdir -p /var/backups
   echo "Backing up configuration file to /var/backups/ruvname.conf.`date +%Y%m%d`"
   cp /etc/ruvname.conf /var/backups/ruvname.conf.`date +%Y%m%d`
@@ -118,7 +150,9 @@ else
   chgrp ruvname /etc/ruvname.conf
 fi
 EOF
-cat > /tmp/$PKGNAME/debian/prerm << EOF
+
+# === prerm — pre-remove script ===
+cat > "$TEMP_DIR/DEBIAN/prerm" << 'EOF'
 #!/bin/sh
 if command -v systemctl >/dev/null; then
   if systemctl is-active --quiet ruvname; then
@@ -128,19 +162,30 @@ if command -v systemctl >/dev/null; then
 fi
 EOF
 
-sudo cp ruvname /tmp/$PKGNAME/usr/bin/
-cp contrib/systemd/*.service /tmp/$PKGNAME/etc/systemd/system/
+# === Права ===
+chmod 755 "$TEMP_DIR/DEBIAN"
+chmod 755 "$TEMP_DIR/DEBIAN/postinst"
+chmod 755 "$TEMP_DIR/DEBIAN/prerm"
+chmod 755 "$TEMP_DIR/usr/bin/ruvname"
 
-tar -czvf /tmp/$PKGNAME/data.tar.gz -C /tmp/$PKGNAME/ \
-  usr/bin/ruvname \
-  etc/systemd/system/ruvname.service \
-  etc/systemd/system/ruvname-default-config.service
-tar -czvf /tmp/$PKGNAME/control.tar.gz -C /tmp/$PKGNAME/debian .
-echo 2.0 > /tmp/$PKGNAME/debian-binary
+# === Имя выходного файла ===
+PKGFILE="$OUTPUT_DIR/${PKGNAME}-linux-${PKGARCH}-v${PKGVERSION}-${SUFFIX}.deb"
 
-ar -r $PKGFILE \
-  /tmp/$PKGNAME/debian-binary \
-  /tmp/$PKGNAME/control.tar.gz \
-  /tmp/$PKGNAME/data.tar.gz
+# === Сборка .deb ===
+echo "📦 Создание пакета: $PKGFILE"
+fakeroot dpkg-deb --build "$TEMP_DIR" "$PKGFILE"
 
-rm -rf /tmp/$PKGNAME
+# === Проверка ===
+if [ -f "$PKGFILE" ]; then
+  echo "✅ .deb успешно создан: $PKGFILE"
+  echo "   Размер: $(du -h "$PKGFILE" | cut -f1)"
+else
+  echo "❌ Ошибка: файл $PKGFILE не создан"
+  exit 1
+fi
+
+# === Информация о пакете ===
+echo "📋 Информация о пакете:"
+dpkg-deb --info "$PKGFILE" || echo "dpkg-deb --info недоступен"
+
+# === Очистка (уже через trap) ===

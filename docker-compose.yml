@@ -1,0 +1,22 @@
+# docker-compose.yml
+version: '3.8'
+
+services:
+  ruvname:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: ruvname:${RUVC_VERSION:-latest}
+    container_name: ruvname
+    ports:
+      - "5311:5311/udp"
+      - "5311:5311/tcp"
+      - "6890:6890/tcp"
+    volumes:
+      - ./ruvname.toml:/app/ruvname.toml
+      - ruvname-data:/app
+    restart: unless-stopped
+    command: ["--no-default-features", "--features=doh"]
+
+volumes:
+  ruvname-data:
