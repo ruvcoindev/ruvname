@@ -147,90 +147,7 @@ release-verbose:
 	 VERBOSE=1 \
 	 bash contrib/deb/build-multiarch.sh
 
-# === Подпись .msi ===
-.PHONY: sign-msi
 
-sign-msi: msi
-	@if [ -n "$(CERT_PFX)" ] && [ -n "$(CERT_PASS)" ]; then \
-		echo "🔐 Подпись .msi..."; \
-		osslsigncode sign \
-			-pkcs12 "$(CERT_PFX)" \
-			-pass "$(CERT_PASS)" \
-			-n "RUVNAME Installer" \
-			-i "https://ruv.name" \
-			-t http://timestamp.digicert.com \
-			-in "$(MSI_DIR)/ruvname-windows-v$(PKGVERSION).msi" \
-			-out "$(MSI_DIR)/ruvname-signed.msi" && \
-		mv "$(MSI_DIR)/ruvname-signed.msi" "$(MSI_DIR)/ruvname-windows-v$(PKGVERSION).msi"; \
-	else \
-		echo "⚠️ CERT_PFX и CERT_PASS не заданы. Подпись пропущена."; \
-	fi
-
-# === Сборка .msi ===
-.PHONY: msi
-
-msi: release
-	@echo "📦 Сборка .msi установщика..."
-	@mkdir -p $(MSI_DIR) tmp/msi/x64 tmp/msi/x86
-
-	@if ! command -v candle >/dev/null || ! command -v light >/dev/null; then \
-		echo "❌ WiX Toolset не установлен (candle, light)"; \
-		exit 1; \
-	fi
-
-	cp "$(BINARY_DIR)/ruvname-windows-x64-v$(PKGVERSION)-gui.exe" tmp/msi/x64/ruvname.exe
-	cp "$(BINARY_DIR)/ruvname-windows-x86-v$(PKGVERSION)-gui.exe" tmp/msi/x86/ruvname.exe
-	cp $(CONFIG) tmp/msi/x64/
-	cp $(CONFIG) tmp/msi/x86/
-	cp LICENSE README.md adblock.txt tmp/msi/x64/
-	cp LICENSE README.md adblock.txt tmp/msi/x86/
-
-	cat > tmp/msi/product.wxs << EOF
-<?xml version="1.0" encoding="UTF-8"?>
-<Wix xmlns="http://schemas.microsoft.com/wix/2006/wi">
-  <Product Id="*" Name="RUVNAME" Language="1033" Version="$(PKGVERSION)" Manufacturer="ruvcoindev" UpgradeCode="a1b2c3d4-e5f6-7890-1234-567890abcdef">
-    <Package InstallerVersion="200" Compressed="yes" InstallScope="perMachine" />
-    <MajorUpgrade DowngradeErrorMessage="Уже установлена новая версия." />
-    <MediaTemplate />
-
-    <Feature Id="ProductFeature" Title="RUVNAME" Level="1">
-      <ComponentGroupRef Id="ProductComponents" />
-    </Feature>
-
-    <Directory Id="TARGETDIR" Name="SourceDir">
-      <Directory Id="ProgramFilesFolder">
-        <Directory Id="INSTALLFOLDER" Name="RUVNAME" />
-      </Directory>
-    </Directory>
-
-    <ComponentGroup Id="ProductComponents" Directory="INSTALLFOLDER">
-      <Component Id="x64App" Guid="*">
-        <File Source="x64/ruvname.exe" KeyPath="yes" />
-        <File Source="x64/$(CONFIG)" />
-        <File Source="x64/LICENSE" />
-        <File Source="x64/README.md" />
-        <File Source="x64/adblock.txt" />
-      </Component>
-      <Component Id="x86App" Guid="*">
-        <File Source="x86/ruvname.exe" />
-        <File Source="x86/$(CONFIG)" />
-        <File Source="x86/LICENSE" />
-        <File Source="x86/README.md" />
-        <File Source="x86/adblock.txt" />
-      </Component>
-    </ComponentGroup>
-
-    <Property Id="ARPPRODUCTICON" Value="icon.ico" />
-    <Property Id="ALLUSERS" Value="1" />
-    <Icon Id="icon.ico" SourceFile="img/logo/ruvname.ico" />
-  </Product>
-</Wix>
-EOF
-
-	cd tmp/msi && candle product.wxs -out product.wixobj
-	cd tmp/msi && light product.wixobj -o "$(CURDIR)/$(MSI_DIR)/ruvname-windows-v$(PKGVERSION).msi"
-	@rm -rf tmp/msi
-	@echo "✅ .msi создан: $(MSI_DIR)/ruvname-windows-v$(PKGVERSION).msi"
 
 # === Сборка .AppImage ===
 .PHONY: appimage
@@ -239,7 +156,8 @@ appimage: build-nogui
 	@echo "📦 Сборка .AppImage..."
 	@mkdir -p $(APPIMAGE_DIR)/ruvname.AppDir
 
-	cp target/x86_64-unknown-linux-musl/release/$(BINARY) $(APPIMAGE_DIR)/ruvname.AppDir/
+	# Копируем бинарник (сборка под хост)
+	cp target/release/$(BINARY) $(APPIMAGE_DIR)/ruvname.AppDir/
 	cp $(CONFIG) $(APPIMAGE_DIR)/ruvname.AppDir/
 	cp img/logo/ruvname.png $(APPIMAGE_DIR)/ruvname.AppDir/ruvname.png
 	cp contrib/appimage/ruvname.desktop $(APPIMAGE_DIR)/ruvname.AppDir/
@@ -250,16 +168,15 @@ appimage: build-nogui
 	echo 'exec "$$HERE/ruvname" "$$@"' >> $(APPIMAGE_DIR)/ruvname.AppDir/AppRun
 
 	chmod +x $(APPIMAGE_DIR)/ruvname.AppDir/AppRun
-	chmod +x $(APPIMAGE_DIR)/ruvname.AppDir/ruvname
+	chmod +x $(APPIMAGE_DIR)/ruvname.AppDir/$(BINARY)
 
 	@if [ ! -f "appimagetool" ]; then \
 		wget -O appimagetool "https://github.com/AppImage/AppImageKit/releases/download/continuous/appimagetool-x86_64.AppImage" && \
 		chmod +x appimagetool; \
 	fi
 
-	./appimagetool $(APPIMAGE_DIR)/ruvname.AppDir $(APPIMAGE_DIR)/ruvname-linux-x86_64-v$(PKGVERSION).AppImage
-	@echo "✅ .AppImage создан: $(APPIMAGE_DIR)/ruvname-linux-x86_64-v$(PKGVERSION).AppImage"
-
+	./appimagetool $(APPIMAGE_DIR)/ruvname.AppDir $(APPIMAGE_DIR)/$(PKGNAME)-linux-x86_64-v$(PKGVERSION).AppImage
+	@echo "✅ .AppImage создан: $(APPIMAGE_DIR)/$(PKGNAME)-linux-x86_64-v$(PKGVERSION).AppImage"
 # === Документация ===
 .PHONY: docs docs-publish
 
