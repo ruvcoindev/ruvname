@@ -53,7 +53,7 @@ jobs:
 
       - name: Создание init.d скрипта
         run: |
-          cat <<'INIT_EOF' > openwrt-package/etc/init.d/ruvname
+          cat > openwrt-package/etc/init.d/ruvname << 'INIT_EOF'
 #!/bin/sh /etc/rc.common
 
 START=99
@@ -81,7 +81,8 @@ INIT_EOF
       - name: Создание файлов контроля пакета
         run: |
           set -ex
-          cat <<'CONTROL_EOF' > openwrt-package/CONTROL/control
+          # Файл control
+          cat > openwrt-package/CONTROL/control << 'CONTROL_EOF'
 Package: ${{ env.PKGNAME }}
 Version: ${{ env.PKGVERSION }}
 Architecture: ${{ env.OPENWRT_ARCH }}
@@ -93,7 +94,8 @@ Description: Decentralized DNS on Blockchain for OpenWrt
  Поддерживает: .ruv, .mesh, .node, .p2p, .tamb, .tmb, .dweb, .dht, .hub
 CONTROL_EOF
 
-          cat <<'POSTINST_EOF' > openwrt-package/CONTROL/postinst
+          # postinst
+          cat > openwrt-package/CONTROL/postinst << 'POSTINST_EOF'
 #!/bin/sh
 [ -x "/etc/init.d/ruvname" ] && {
   /etc/init.d/ruvname enable
@@ -103,7 +105,8 @@ exit 0
 POSTINST_EOF
           chmod +x openwrt-package/CONTROL/postinst
 
-          cat <<'PRERM_EOF' > openwrt-package/CONTROL/prerm
+          # prerm
+          cat > openwrt-package/CONTROL/prerm << 'PRERM_EOF'
 #!/bin/sh
 [ -x "/etc/init.d/ruvname" ] && {
   /etc/init.d/ruvname stop
