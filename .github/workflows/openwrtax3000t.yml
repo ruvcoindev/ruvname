@@ -53,36 +53,35 @@ jobs:
 
       - name: Создание init.d скрипта
         run: |
-          cat > openwrt-package/etc/init.d/ruvname << 'INIT_EOF'
+          cat > openwrt-package/etc/init.d/ruvname << 'EOF'
 #!/bin/sh /etc/rc.common
 
 START=99
 USE_PROCD=1
 
 start_service() {
-  procd_open_instance
-  procd_set_param command /usr/bin/ruvname
-  procd_set_param respawn
-  procd_set_param file /etc/config/ruvname
-  procd_close_instance
+    procd_open_instance
+    procd_set_param command /usr/bin/ruvname
+    procd_set_param respawn
+    procd_set_param file /etc/config/ruvname
+    procd_close_instance
 }
 
 reload_service() {
-  stop
-  start
+    stop
+    start
 }
 
 stop_service() {
-  killall ruvname
+    killall ruvname
 }
-INIT_EOF
+EOF
           chmod +x openwrt-package/etc/init.d/ruvname
 
       - name: Создание файлов контроля пакета
         run: |
           set -ex
-          # Файл control
-          cat > openwrt-package/CONTROL/control << 'CONTROL_EOF'
+          cat > openwrt-package/CONTROL/control << 'EOF'
 Package: ${{ env.PKGNAME }}
 Version: ${{ env.PKGVERSION }}
 Architecture: ${{ env.OPENWRT_ARCH }}
@@ -92,28 +91,26 @@ Priority: optional
 Description: Decentralized DNS on Blockchain for OpenWrt
  RUVNAME — децентрализованная система доменных имён на блокчейне.
  Поддерживает: .ruv, .mesh, .node, .p2p, .tamb, .tmb, .dweb, .dht, .hub
-CONTROL_EOF
+EOF
 
-          # postinst
-          cat > openwrt-package/CONTROL/postinst << 'POSTINST_EOF'
+          cat > openwrt-package/CONTROL/postinst << 'EOF'
 #!/bin/sh
 [ -x "/etc/init.d/ruvname" ] && {
   /etc/init.d/ruvname enable
   /etc/init.d/ruvname start
 }
 exit 0
-POSTINST_EOF
+EOF
           chmod +x openwrt-package/CONTROL/postinst
 
-          # prerm
-          cat > openwrt-package/CONTROL/prerm << 'PRERM_EOF'
+          cat > openwrt-package/CONTROL/prerm << 'EOF'
 #!/bin/sh
 [ -x "/etc/init.d/ruvname" ] && {
   /etc/init.d/ruvname stop
   /etc/init.d/ruvname disable
 }
 exit 0
-PRERM_EOF
+EOF
           chmod +x openwrt-package/CONTROL/prerm
 
       - name: Упаковка в .ipk
