@@ -8,13 +8,11 @@ on:
 env:
   PKGNAME: ruvname
   PKGVERSION: ${{ github.ref_name }}
-  ARCH: aarch64_cortex-a53  # Xiaomi AX3000T: mt7981 → aarch64_cortex-a53
   TARGET: aarch64-unknown-linux-musl
   OPENWRT_ARCH: aarch64_cortex-a53
   OPENWRT_ABI: glibc
 
 jobs:
-  # === 1. Сборка под OpenWrt ===
   build-openwrt:
     name: Build .ipk for Xiaomi Mi AX3000T (OpenWrt 24.10)
     runs-on: ubuntu-22.04
@@ -55,10 +53,8 @@ jobs:
           mkdir -p openwrt-package/etc/init.d
           mkdir -p openwrt-package/etc/config
           mkdir -p openwrt-package/usr/bin
-          mkdir -p openwrt-package/usr/lib
           mkdir -p openwrt-package/root
 
-      # === init.d скрипт ===
       - name: Создание init.d скрипта
         run: |
           cat > openwrt-package/etc/init.d/ruvname << 'EOF'
@@ -89,7 +85,6 @@ shutdown() {
 EOF
           chmod +x openwrt-package/etc/init.d/ruvname
 
-      # === Конфиг ===
       - name: Создание /etc/config/ruvname
         run: |
           mkdir -p openwrt-package/etc/config
@@ -97,13 +92,11 @@ EOF
           echo 'config ruvname' > openwrt-package/etc/config/ruvname
           echo '	option enabled 1' >> openwrt-package/etc/config/ruvname
 
-      # === Установка в /usr/bin ===
       - name: Копирование в /usr/bin
         run: |
           cp openwrt-package/ruvname openwrt-package/usr/bin/ruvname
           chmod +x openwrt-package/usr/bin/ruvname
 
-      # === control файл ===
       - name: Создание control
         run: |
           mkdir -p openwrt-package/CONTROL
@@ -119,19 +112,16 @@ Description: Decentralized DNS on Blockchain for OpenWrt
  Поддерживает: .ruv, .mesh, .node, .p2p, .tamb, .tmb, .dweb, .dht, .hub
 EOF
 
-      # === postinst — после установки ===
       - name: postinst
         run: |
           cat > openwrt-package/CONTROL/postinst << 'EOF'
 #!/bin/sh
 chmod 755 /etc/init.d/ruvname
 /etc/init.d/ruvname enable
-# Не запускаем автоматически — пусть пользователь сам
 exit 0
 EOF
           chmod +x openwrt-package/CONTROL/postinst
 
-      # === prerm — перед удалением ===
       - name: prerm
         run: |
           cat > openwrt-package/CONTROL/prerm << 'EOF'
@@ -142,7 +132,6 @@ exit 0
 EOF
           chmod +x openwrt-package/CONTROL/prerm
 
-      # === Упаковка в .ipk ===
       - name: Упаковка в .ipk
         run: |
           mkdir -p ipk-output
@@ -156,7 +145,6 @@ EOF
         with:
           path: ipk-output/
 
-  # === 2. Создание релиза и загрузка .ipk ===
   create_release:
     needs: build-openwrt
     runs-on: ubuntu-22.04
