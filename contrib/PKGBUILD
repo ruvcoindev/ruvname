@@ -1,10 +1,10 @@
-pkgname=alfis
+pkgname=ruvname
 pkgver=$(sh ./semver/version.sh --bare)
 pkgrel=1
-pkgdesc="Alternative Free Identity System"
+pkgdesc="A decentralized DNS and mesh network protocol"
 arch=('x86_64' 'aarch64')
 license=('AGPL3')
-url='https://github.com/Revertron/Alfis'
+url='https://github.com/ruvcoindev/Ruvname'
 depends=('webkit2gtk' 'gtk3')
 makedepends=('cargo' 'rust' 'atk' 'pango')
 backup=("etc/$pkgname.conf")
@@ -24,17 +24,17 @@ package() {
 	install -Dm 644 "contrib/systemd/$pkgname.sysusers" "$pkgdir/usr/lib/sysusers.d/$pkgname.conf"
 	install -Dm 644 "contrib/systemd/$pkgname.tmpfiles" "$pkgdir/usr/lib/tmpfiles.d/$pkgname.conf"
 
-	install -Dm 644 "contrib/name.alfis.Alfis.desktop" "$pkgdir/usr/share/applications/name.alfis.Alfis.desktop"
+	install -Dm 644 "contrib/name.ruvname.Ruvname.desktop" "$pkgdir/usr/share/applications/name.ruvname.Ruvname.desktop"
 
-	install -Dm 644 "img/logo/alfis_icon16.png"  "$pkgdir/usr/share/icons/hicolor/16x16/apps/alfis.png"
-	install -Dm 644 "img/logo/alfis_icon22.png"  "$pkgdir/usr/share/icons/hicolor/22x22/apps/alfis.png"
-	install -Dm 644 "img/logo/alfis_icon24.png"  "$pkgdir/usr/share/icons/hicolor/24x24/apps/alfis.png"
-	install -Dm 644 "img/logo/alfis_icon32.png"  "$pkgdir/usr/share/icons/hicolor/32x32/apps/alfis.png"
-	install -Dm 644 "img/logo/alfis_icon36.png"  "$pkgdir/usr/share/icons/hicolor/36x36/apps/alfis.png"
-	install -Dm 644 "img/logo/alfis_icon48.png"  "$pkgdir/usr/share/icons/hicolor/48x48/apps/alfis.png"
-	install -Dm 644 "img/logo/alfis_icon64.png"  "$pkgdir/usr/share/icons/hicolor/64x64/apps/alfis.png"
-	install -Dm 644 "img/logo/alfis_icon72.png"  "$pkgdir/usr/share/icons/hicolor/72x72/apps/alfis.png"
-	install -Dm 644 "img/logo/alfis_icon96.png"  "$pkgdir/usr/share/icons/hicolor/96x96/apps/alfis.png"
-	install -Dm 644 "img/logo/alfis_icon128.png" "$pkgdir/usr/share/icons/hicolor/128x128/apps/alfis.png"
-	install -Dm 644 "img/logo/alfis_icon192.png" "$pkgdir/usr/share/icons/hicolor/192x192/apps/alfis.png"
+	install -Dm 644 "img/logo/ruvname_icon16.png"  "$pkgdir/usr/share/icons/hicolor/16x16/apps/ruvname.png"
+	install -Dm 644 "img/logo/ruvname_icon22.png"  "$pkgdir/usr/share/icons/hicolor/22x22/apps/ruvname.png"
+	install -Dm 644 "img/logo/ruvname_icon24.png"  "$pkgdir/usr/share/icons/hicolor/24x24/apps/ruvname.png"
+	install -Dm 644 "img/logo/ruvname_icon32.png"  "$pkgdir/usr/share/icons/hicolor/32x32/apps/ruvname.png"
+	install -Dm 644 "img/logo/ruvname_icon36.png"  "$pkgdir/usr/share/icons/hicolor/36x36/apps/ruvname.png"
+	install -Dm 644 "img/logo/ruvname_icon48.png"  "$pkgdir/usr/share/icons/hicolor/48x48/apps/ruvname.png"
+	install -Dm 644 "img/logo/ruvname_icon64.png"  "$pkgdir/usr/share/icons/hicolor/64x64/apps/ruvname.png"
+	install -Dm 644 "img/logo/ruvname_icon72.png"  "$pkgdir/usr/share/icons/hicolor/72x72/apps/ruvname.png"
+	install -Dm 644 "img/logo/ruvname_icon96.png"  "$pkgdir/usr/share/icons/hicolor/96x96/apps/ruvname.png"
+	install -Dm 644 "img/logo/ruvname_icon128.png" "$pkgdir/usr/share/icons/hicolor/128x128/apps/ruvname.png"
+	install -Dm 644 "img/logo/ruvname_icon192.png" "$pkgdir/usr/share/icons/hicolor/192x192/apps/ruvname.png"
 }

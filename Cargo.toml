@@ -1,7 +1,7 @@
 [package]
 name = "alfis"
 version = "0.8.6"
-authors = ["Revertron <alfis@revertron.com>"]
+authors = ["Revertron <admin@ruvcha.in>"]
 edition = "2021"
 build = "build.rs"
 readme = "README.md"

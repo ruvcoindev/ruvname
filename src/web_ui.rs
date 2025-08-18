@@ -8,15 +8,15 @@ use std::sync::{Arc, Mutex, MutexGuard};
 use std::thread;
 use std::time::{Duration, Instant};
 
-use alfis::blockchain::transaction::DomainData;
-use alfis::blockchain::types::MineResult;
-use alfis::commons::*;
-use alfis::crypto::CryptoBox;
-use alfis::dns::protocol::DnsRecord;
-use alfis::event::Event;
-use alfis::eventbus::{post, register};
-use alfis::miner::Miner;
-use alfis::{keystore, Block, Bytes, Context, Keystore, Transaction};
+use ruvname::blockchain::transaction::DomainData;
+use ruvname::blockchain::types::MineResult;
+use ruvname::commons::*;
+use ruvname::crypto::CryptoBox;
+use ruvname::dns::protocol::DnsRecord;
+use ruvname::event::Event;
+use ruvname::eventbus::{post, register};
+use ruvname::miner::Miner;
+use ruvname::{keystore, Block, Bytes, Context, Keystore, Transaction};
 use chrono::{DateTime, Local, Utc};
 #[allow(unused_imports)]
 use log::{debug, error, info, trace, warn, LevelFilter};

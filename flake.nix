@@ -1,5 +1,5 @@
 {
-  description = "Alternative Free Identity System";
+  description = "A decentralized DNS and mesh network protocol";
 
   inputs = {
     nixpkgs.url = "nixpkgs/nixos-unstable";
@@ -26,7 +26,7 @@
 
         naersk-lib = naersk.lib.${system};
 
-        alfis = { webgui ? true, doh ? true, edge ? false }:
+        ruvname = { webgui ? true, doh ? true, edge ? false }:
           let
             features = builtins.concatStringsSep " " (builtins.concatMap
               ({ option, features }: pkgs.lib.optionals option features) [
@@ -44,7 +44,7 @@
                 }
               ]);
           in naersk-lib.buildPackage {
-            pname = "alfis";
+            pname = "ruvname";
             nativeBuildInputs = with pkgs; [ pkg-config webkitgtk kdialog ];
             dontWrapQtApps = true;
             cargoBuildOptions = opts:
@@ -57,34 +57,34 @@
       in rec {
 
         packages = {
-          alfis = alfis {
+          ruvname = ruvname {
             webgui = true;
             doh = true;
             edge = false;
           };
-          alfisWithoutGUI = alfis {
+          ruvnameWithoutGUI = ruvname {
             webgui = false;
             doh = true;
             edge = false;
           };
         } // pkgs.lib.optionalAttrs isWindows {
-          alfisEdge = alfis {
+          ruvnameEdge = ruvname {
             webgui = false;
             doh = true;
             edge = true;
           };
         };
 
-        defaultPackage = packages.alfis;
+        defaultPackage = packages.ruvname;
 
         apps = with flake-utils.lib;
           {
-            alfis = mkApp { drv = packages.alfis; };
-            alfisWithoutGUI = mkApp { drv = packages.alfisWithoutGUI; };
+            ruvname = mkApp { drv = packages.ruvname; };
+            ruvnameWithoutGUI = mkApp { drv = packages.ruvnameWithoutGUI; };
           } // pkgs.lib.optionalAttrs isWindows {
-            alfisEdge = mkApp { drv = packages.alfisEdge; };
+            ruvnameEdge = mkApp { drv = packages.ruvnameEdge; };
           };
-        defaultApp = apps.alfis;
+        defaultApp = apps.ruvname;
 
         devShell = import ./shell.nix { inherit pkgs; };
 

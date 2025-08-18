@@ -1,13 +1,13 @@
 [Unit]
 Description=ALFIS default config generator
-ConditionPathExists=|!/etc/alfis.conf
-ConditionFileNotEmpty=|!/etc/alfis.conf
+ConditionPathExists=|!/etc/ruvname.conf
+ConditionFileNotEmpty=|!/etc/ruvname.conf
 Wants=local-fs.target
 After=local-fs.target
 
 [Service]
 Type=oneshot
-User=alfis
-Group=alfis
-StandardOutput=file:/etc/alfis.conf
-ExecStart=/usr/bin/alfis -g
+User=ruvname
+Group=ruvname
+StandardOutput=file:/etc/ruvname.conf
+ExecStart=/usr/bin/ruvname -g

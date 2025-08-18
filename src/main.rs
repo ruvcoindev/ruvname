@@ -22,10 +22,10 @@ use std::process::exit;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::thread::JoinHandle;
 
-use alfis::event::Event;
-use alfis::eventbus::{post, register};
-use alfis::keystore::create_key;
-use alfis::{dns_utils, Block, Bytes, Chain, Context, Keystore, Miner, Network, Settings, Transaction, ALFIS_DEBUG, ALFIS_TRACE, DB_NAME, ORIGIN_DIFFICULTY};
+use ruvname::event::Event;
+use ruvname::eventbus::{post, register};
+use ruvname::keystore::create_key;
+use ruvname::{dns_utils, Block, Bytes, Chain, Context, Keystore, Miner, Network, Settings, Transaction, ALFIS_DEBUG, ALFIS_TRACE, DB_NAME, ORIGIN_DIFFICULTY};
 #[cfg(windows)]
 use crate::win_service::start_service;
 
@@ -34,9 +34,9 @@ mod web_ui;
 #[cfg(windows)]
 mod win_service;
 
-const SETTINGS_FILENAME: &str = "alfis.toml";
-const LOG_TARGET_MAIN: &str = "alfis::Main";
-const CONFIG: &str = include_str!("../alfis.toml");
+const SETTINGS_FILENAME: &str = "ruvname.toml";
+const LOG_TARGET_MAIN: &str = "ruvname::Main";
+const CONFIG: &str = include_str!("../ruvname.toml");
 
 fn main() {
     #[allow(unused_assignments, unused_mut)]
@@ -105,8 +105,8 @@ fn main() {
 
         // Change the current directory to the new directory
         env::set_current_dir(&new_directory).expect("Failed to change directory");
-        let mut file = File::create("alfis.toml").expect("Failed to create alfis.toml in AppData\\ALFIS");
-        file.write_all(CONFIG.as_bytes()).expect("Failed to write alfis.toml");
+        let mut file = File::create("ruvname.toml").expect("Failed to create ruvname.toml in AppData\\ALFIS");
+        file.write_all(CONFIG.as_bytes()).expect("Failed to write ruvname.toml");
 
         use crate::win_service::*;
         install_service(SERVICE_NAME, &program);
@@ -407,7 +407,7 @@ fn create_genesis_if_needed(context: &Arc<Mutex<Context>>, miner: &Arc<Mutex<Min
 
 #[cfg(test)]
 mod tests {
-    use alfis::dns::protocol::{DnsRecord, TransientTtl};
+    use ruvname::dns::protocol::{DnsRecord, TransientTtl};
 
     #[test]
     fn record_to_string() {

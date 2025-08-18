@@ -914,7 +914,7 @@ fn send_message(connection: &mut TcpStream, data: &[u8]) -> io::Result<()> {
 }
 
 fn wait_for_internet(timeout: Duration) {
-    let addr = "alfis.name:443";
+    let addr = "ruvname.name:443";
     let start = Instant::now();
     let delay = Duration::from_millis(200);
 

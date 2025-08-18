@@ -10,8 +10,8 @@ use crate::dns::protocol::{DnsPacket, DnsQuestion, DnsRecord, QueryType, ResultC
 use crate::Context;
 use crate::dns::client::{DnsClient, DnsNetworkClient};
 
-const NAME_SERVER: &str = "ns.alfis.name";
-const SERVER_ADMIN: &str = "admin.alfis.name";
+const NAME_SERVER: &str = "ns.ruvname.name";
+const SERVER_ADMIN: &str = "admin.ruvname.name";
 
 pub struct BlockchainFilter {
     context: Arc<Mutex<Context>>

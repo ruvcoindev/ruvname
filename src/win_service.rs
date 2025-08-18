@@ -10,14 +10,14 @@ use windows_service::{define_windows_service, service::{
     ServiceControl, ServiceExitCode, ServiceState, ServiceStatus, ServiceType,
 }, service_control_handler::ServiceControlHandlerResult, service_dispatcher, Result, service_control_handler};
 use windows_service::service::ServiceControlAccept;
-use alfis::{Context, Settings};
+use ruvname::{Context, Settings};
 use crate::start_services;
 
 // Define the service entry point and its behavior
-define_windows_service!(ffi_service_main, alfis_service_main);
+define_windows_service!(ffi_service_main, ruvname_service_main);
 
 pub const SERVICE_NAME: &str = "ALFIS";
-pub const SERVICE_DESCRIPTION: &str = "Alternative Free Identity System, DNS on a smallest blockchain.";
+pub const SERVICE_DESCRIPTION: &str = "A decentralized DNS and mesh network protocol, DNS on a smallest blockchain.";
 
 lazy_static! {
     // Sending parameters through static variables. Don't do this!
@@ -33,7 +33,7 @@ pub fn start_service(settings: Settings, context: Arc<Mutex<Context>>) -> Result
     service_dispatcher::start(SERVICE_NAME, ffi_service_main)
 }
 
-fn alfis_service_main(_arguments: Vec<OsString>) {
+fn ruvname_service_main(_arguments: Vec<OsString>) {
     if let Err(e) = run_service_logic() {
         error!("Error while starting service: {}", e);
     }
@@ -131,7 +131,7 @@ pub fn install_service(service_name: &str, bin_path: &str) {
         start_type: ServiceStartType::AutoStart,
         error_control: ServiceErrorControl::Normal,
         executable_path: PathBuf::from(bin_path),
-        launch_arguments: vec![OsString::from("--service"), OsString::from("-l"), OsString::from("alfis_log.txt")],
+        launch_arguments: vec![OsString::from("--service"), OsString::from("-l"), OsString::from("ruvname_log.txt")],
         dependencies: vec![],
         account_name: None, // run as System
         account_password: None,

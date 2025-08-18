@@ -108,7 +108,7 @@ pub struct Net {
 impl Default for Net {
     fn default() -> Self {
         Net {
-            peers: vec![String::from("test-ip4.alfis.name:4244"), String::from("test-ip6.alfis.name:4244")],
+            peers: vec![String::from("test-ip4.ruvname.name:4244"), String::from("test-ip6.ruvname.name:4244")],
             listen: String::from("[::]:4244"),
             public: true,
             yggdrasil_only: false

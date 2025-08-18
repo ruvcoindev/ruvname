@@ -1,13 +1,13 @@
 [Desktop Entry]
 Categories=Network;P2P;
-Exec=alfis %U
-GenericName=Alfis client
-Comment=Alternative Free Identity System
-Icon=alfis
-MimeType=application/x-alfis;
-Name=Alfis
+Exec=ruvname %U
+GenericName=Ruvname client
+Comment=A decentralized DNS and mesh network protocol
+Icon=ruvname
+MimeType=application/x-ruvname;
+Name=Ruvname
 Terminal=false
 Type=Application
 StartupNotify=false
-StartupWMClass=alfis
+StartupWMClass=ruvname
 Keywords=dns;p2p;
