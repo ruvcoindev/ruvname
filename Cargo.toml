@@ -1,13 +1,13 @@
 [package]
-name = "alfis"
+name = "ruvname"
 version = "0.8.6"
-authors = ["Revertron <admin@ruvcha.in>"]
+authors = ["ruvcoindev <admin@ruvcha.in>"]
 edition = "2021"
 build = "build.rs"
 readme = "README.md"
-homepage = "https://alfis.name"
-repository = "https://github.com/Revertron/Alfis"
-exclude = ["blockchain.db", "alfis.toml"]
+homepage = "https://ruv.name"
+repository = "https://github.com/ruvcoindev/ruvname"
+exclude = ["blockchain.db", "ruvname.toml"]
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
@@ -18,7 +18,7 @@ toml = "0.8.19"
 sha2 = "0.10.8"
 ed25519-dalek = "2.1.1"
 x25519-dalek = { version = "2.0.1", features = ["reusable_secrets"] }
-ecies-ed25519-ng = { git = "https://github.com/Revertron/ecies-ed25519-ng", rev = "554ca29", version = "0.5.3" }
+ecies-ed25519-ng = { git = "https://github.com/ruvcoindev/ecies-ed25519-ng", rev = "554ca29", version = "0.5.3" }
 chacha20poly1305 = "0.10.1"
 blakeout = "0.3.0"
 num_cpus = "1.16.0"
@@ -65,8 +65,8 @@ opt-level = 2
 opt-level = 2
 
 [package.metadata.winres]
-ProductName="ALFIS"
-FileDescription="Alternative Free Identity System"
+ProductName="RUVNAME"
+FileDescription="A decentralized DNS and mesh network protocol"
 
 [features]
 webgui = ["web-view", "tinyfiledialogs", "open"]
