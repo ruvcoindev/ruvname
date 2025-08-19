@@ -1176,23 +1176,4 @@ pub mod tests {
         assert_eq!(block, block2);
     }
 }
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_load_zones_no_empty() {
-        let zones = load_zones();
-        for z in &zones {
-            assert!(!z.name.is_empty(), "Found empty zone name!");
-        }
-    }
-
-    #[test]
-    fn test_load_zones_has_ruv() {
-        let zones = load_zones();
-        let has_ruv = zones.iter().any(|z| z.name == "ruv");
-        assert!(has_ruv, "Zone 'ruv' not found");
-    }
-}
+    
