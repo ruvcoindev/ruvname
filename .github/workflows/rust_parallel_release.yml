@@ -12,7 +12,7 @@ name: Create release
 jobs:
   get_version:
     name: Get version from Git tag
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     outputs:
       project_version: ${{ env.VERSION }}
     steps:
@@ -23,9 +23,9 @@ jobs:
 
   create_release:
     name: Create Release
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     needs: get_version
-    outputs: 
+    outputs:
       upload_url: ${{ steps.create_release.outputs.upload_url }}
     steps:
       - name: Checkout code
@@ -52,7 +52,7 @@ jobs:
   linux-nogui:
     name: Create and upload builds
     needs: [ create_release, get_version ]
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     strategy:
       matrix:
         arch: [ amd64, i686, armhf, armlf, arm64 ]
@@ -86,8 +86,8 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        os: [ windows-latest, ubuntu-latest, macOS-latest ]
-  
+        os: [ windows-latest, ubuntu-22.04 ]
+
     defaults:
       run:
         shell: bash
@@ -116,9 +116,6 @@ jobs:
         if: contains(matrix.os, 'ubuntu')
         run: echo "BIN_ARCH=linux-amd64" >> $GITHUB_ENV
 
-      - name: macos
-        if: contains(matrix.os, 'mac')
-        run: echo "BIN_ARCH=darwin-amd64" >> $GITHUB_ENV
 
       - name: Fill variables
         run: |
