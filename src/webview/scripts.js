@@ -588,7 +588,7 @@ function refreshZonesList() {
 
     availableZones.forEach(function(value, index, array) {
         var note = "";
-        if (value.yggdrasil) {
+        if (value.ruvchain) {
             note = "*";
         }
         var zone = value.name + note;
@@ -607,7 +607,7 @@ function refreshZonesList() {
     if (typeof currentZone !== 'undefined') {
         var cur_name = document.getElementById("zones-current-name");
         var name = "." + currentZone.name;
-        if (currentZone.yggdrasil) {
+        if (currentZone.ruvchain) {
             name = name + "*";
         }
         cur_name.innerHTML = name;

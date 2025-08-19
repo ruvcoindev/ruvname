@@ -102,7 +102,7 @@ pub struct Net {
     #[serde(default)]
     pub public: bool,
     #[serde(default)]
-    pub yggdrasil_only: bool
+    pub ruvchain_only: bool
 }
 
 impl Default for Net {
@@ -111,7 +111,7 @@ impl Default for Net {
             peers: vec![String::from("test-ip4.ruvname.name:4244"), String::from("test-ip6.ruvname.name:4244")],
             listen: String::from("[::]:4244"),
             public: true,
-            yggdrasil_only: false
+            ruvchain_only: false
         }
     }
 }

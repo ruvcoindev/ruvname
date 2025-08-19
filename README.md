@@ -27,7 +27,7 @@ Every node connects to its siblings and synchronizes the domain database.
 This DB consists of cryptographically bound blocks, that contain encrypted domain names, contacts, and some info, if you wish.
 There are 10 domain zones available to get domain in:
 `.anon`, `.btn`, `.conf`, `.index`, `.merch`, `.mirror`, `.mob`, `.screen`, `.srv`, `.ygg`.
-But, `.anon` and `.ygg` are bound to have IP-addresses from Yggdrasil Network only.
+But, `.anon` and `.ygg` are bound to have IP-addresses from Ruvchain Network only.
 
 ## Building and running
 

@@ -51,9 +51,9 @@ impl Network {
     }
 
     pub fn start(&mut self) {
-        let (listen_addr, peers_addrs, yggdrasil_only) = {
+        let (listen_addr, peers_addrs, ruvchain_only) = {
             let c = self.context.lock().unwrap();
-            (c.settings.net.listen.clone(), c.settings.net.peers.clone(), c.settings.net.yggdrasil_only)
+            (c.settings.net.listen.clone(), c.settings.net.peers.clone(), c.settings.net.ruvchain_only)
         };
 
         let running = Arc::new(AtomicBool::new(true));
@@ -71,7 +71,7 @@ impl Network {
 
         // Starting peer connections to bootstrap nodes
         wait_for_internet(WAIT_FOR_INTERNET);
-        self.peers.connect_peers(&peers_addrs, poll.registry(), &mut self.token, yggdrasil_only);
+        self.peers.connect_peers(&peers_addrs, poll.registry(), &mut self.token, ruvchain_only);
 
         let mut ui_timer = Instant::now();
         let mut log_timer = Instant::now();
@@ -109,7 +109,7 @@ impl Network {
                 warn!("Restarting swarm connections...");
                 wait_for_internet(WAIT_FOR_INTERNET);
                 // Starting peer connections to bootstrap nodes
-                self.peers.connect_peers(&peers_addrs, poll.registry(), &mut self.token, yggdrasil_only);
+                self.peers.connect_peers(&peers_addrs, poll.registry(), &mut self.token, ruvchain_only);
                 bootstrap_timer = Instant::now();
                 last_events_time = Instant::now();
             }
@@ -149,7 +149,7 @@ impl Network {
                                 continue;
                             }
 
-                            if yggdrasil_only && !is_yggdrasil(&address.ip()) {
+                            if ruvchain_only && !is_ruvchain(&address.ip()) {
                                 debug!("Dropping connection from Internet");
                                 stream.shutdown(Shutdown::Both).unwrap_or_else(|e| {
                                     warn!("Error in shutdown, {}", e);
@@ -233,7 +233,7 @@ impl Network {
                         seen_blocks.clear();
                     }
                     if nodes < MAX_NODES && connect_timer.elapsed().as_secs() >= 2 {
-                        self.peers.connect_new_peers(poll.registry(), &mut self.token, yggdrasil_only);
+                        self.peers.connect_new_peers(poll.registry(), &mut self.token, ruvchain_only);
                         connect_timer = Instant::now();
                     }
                     (blocks, max_height, context.chain.get_last_hash())

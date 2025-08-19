@@ -384,14 +384,14 @@ impl Peers {
         }
     }
 
-    pub fn connect_new_peers(&mut self, registry: &Registry, unique_token: &mut Token, yggdrasil_only: bool) {
+    pub fn connect_new_peers(&mut self, registry: &Registry, unique_token: &mut Token, ruvchain_only: bool) {
         if self.new_peers.is_empty() {
             return;
         }
         self.new_peers.sort();
         self.new_peers.dedup();
         let addr = self.new_peers.remove(0);
-        match self.connect_peer(&addr, registry, unique_token, yggdrasil_only) {
+        match self.connect_peer(&addr, registry, unique_token, ruvchain_only) {
             Ok(_) => {}
             Err(_) => {
                 debug!("Could not connect to {}", &addr);
@@ -400,7 +400,7 @@ impl Peers {
     }
 
     /// Connecting to configured (bootstrap) peers
-    pub fn connect_peers(&mut self, peers_addrs: &[String], registry: &Registry, unique_token: &mut Token, yggdrasil_only: bool) {
+    pub fn connect_peers(&mut self, peers_addrs: &[String], registry: &Registry, unique_token: &mut Token, ruvchain_only: bool) {
         let mut set = HashSet::new();
         for peer in peers_addrs.iter() {
             // At first we connect to 10 peer addresses
@@ -412,7 +412,7 @@ impl Peers {
             while !addresses.is_empty() {
                 let addr = addresses.remove(0);
                 if !set.contains(&addr) {
-                    match self.connect_peer(&addr, registry, unique_token, yggdrasil_only) {
+                    match self.connect_peer(&addr, registry, unique_token, ruvchain_only) {
                         Ok(_) => {
                             set.insert(addr);
                         }
@@ -453,12 +453,12 @@ impl Peers {
         vec![]
     }
 
-    fn connect_peer(&mut self, addr: &SocketAddr, registry: &Registry, unique_token: &mut Token, yggdrasil_only: bool) -> io::Result<()> {
+    fn connect_peer(&mut self, addr: &SocketAddr, registry: &Registry, unique_token: &mut Token, ruvchain_only: bool) -> io::Result<()> {
         if self.ignored.contains_key(&addr.ip()) {
             return Err(io::Error::from(io::ErrorKind::ConnectionAborted));
         }
-        if yggdrasil_only && !is_yggdrasil(&addr.ip()) {
-            debug!("Ignoring not Yggdrasil address '{}'", &addr.ip());
+        if ruvchain_only && !is_ruvchain(&addr.ip()) {
+            debug!("Ignoring not Ruvchain address '{}'", &addr.ip());
             return Err(io::Error::from(io::ErrorKind::InvalidInput));
         }
         trace!("Connecting to peer {}", &addr);

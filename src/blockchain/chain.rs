@@ -19,7 +19,7 @@ use crate::blockchain::types::{BlockQuality, MineResult, Options, ZoneData};
 use crate::commons::constants::*;
 use crate::keystore::check_public_key_strength;
 use crate::settings::Settings;
-use crate::{check_domain, get_domain_zone, is_yggdrasil_record, Block, Bytes, Keystore, Transaction, from_hex};
+use crate::{check_domain, get_domain_zone, is_ruvchain_record, Block, Bytes, Keystore, Transaction, from_hex};
 use rand::prelude::IteratorRandom;
 
 const TEMP_DB_NAME: &str = ":memory:";
@@ -554,8 +554,8 @@ impl Chain {
         let zones_text = ZONES_TXT.replace("\r", "");
         let zones: Vec<_> = zones_text.split('\n').collect();
         for zone in zones {
-            let yggdrasil = zone == "ygg" || zone == "anon";
-            result.push(ZoneData { name: zone.to_owned(), yggdrasil })
+            let ruvchain = zone == "ruv" || zone == "mesh" || zone == "node" || zone == "dnet" || zone == "p2p" || zone == "tamb" || zone == "tmb";
+            result.push(ZoneData { name: zone.to_owned(), ruvchain })
         }
         result
     }
@@ -866,7 +866,7 @@ impl Chain {
                 warn!("Block {:?} is mined too early!", &block);
                 return Bad;
             }
-            // Check if yggdrasil only property of zone is not violated
+            // Check if ruvchain only property of zone is not violated
             if let Some(block_data) = transaction.get_domain_data() {
                 if block_data.records.len() > MAX_RECORDS {
                     warn!("Someone mined too many records!");
@@ -874,10 +874,10 @@ impl Chain {
                 }
                 let zones = self.get_zones();
                 for z in zones {
-                    if z.name == block_data.zone && z.yggdrasil {
+                    if z.name == block_data.zone && z.ruvchain {
                         for record in &block_data.records {
-                            if !is_yggdrasil_record(record) {
-                                warn!("Someone mined domain with clearnet records for Yggdrasil only zone!");
+                            if !is_ruvchain_record(record) {
+                                warn!("Someone mined domain with clearnet records for Ruvchain only zone!");
                                 return Bad;
                             }
                             if let Some(data) = record.get_data() {

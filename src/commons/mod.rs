@@ -3,7 +3,7 @@ use std::num;
 
 pub use constants::*;
 use rand::Rng;
-#[cfg(not(any(target_os = "macos", target_os = "dragonfly")))]
+
 use thread_priority::*;
 
 use crate::dns::protocol::DnsRecord;
@@ -102,19 +102,19 @@ pub fn random_string(length: usize) -> String {
     result
 }
 
-/// Checks if this IP is from Yggdrasil network
-/// https://yggdrasil-network.github.io
-pub fn is_yggdrasil(addr: &IpAddr) -> bool {
+/// Checks if this IP is from Ruvchain network
+/// https://ruvcha.in
+pub fn is_ruvchain(addr: &IpAddr) -> bool {
     if let IpAddr::V6(ipv6) = addr {
         let first_byte = ipv6.octets()[0];
-        return first_byte == 2 || first_byte == 3;
+        return first_byte == 0xfa || first_byte == 0xfb;
     }
     false
 }
 
-/// Checks if this record has IP from Yggdrasil network
-/// https://yggdrasil-network.github.io
-pub fn is_yggdrasil_record(record: &DnsRecord) -> bool {
+/// Checks if this record has IP from Ruvchain network
+/// https://ruvcha.in
+pub fn is_ruvchain_record(record: &DnsRecord) -> bool {
     match record {
         DnsRecord::UNKNOWN { .. } => {}
         DnsRecord::A { .. } => return false,
@@ -124,7 +124,7 @@ pub fn is_yggdrasil_record(record: &DnsRecord) -> bool {
         DnsRecord::PTR { .. } => {}
         DnsRecord::MX { .. } => {}
         DnsRecord::TXT { .. } => {}
-        DnsRecord::AAAA { addr, .. } => return is_yggdrasil(&IpAddr::from(*addr)),
+        DnsRecord::AAAA { addr, .. } => return is_ruvchain(&IpAddr::from(*addr)),
         DnsRecord::SRV { .. } => {}
         DnsRecord::OPT { .. } => {}
         DnsRecord::TLSA { .. } => {}
@@ -145,7 +145,7 @@ pub fn setup_miner_thread(cpu: u32) {
     let _ = set_current_thread_priority(ThreadPriority::Min);
 }
 
-#[cfg(any(target_os = "macos", target_os = "dragonfly"))]
+
 #[allow(unused_variables)]
 pub fn setup_miner_thread(cpu: u32) {
     // MacOS is not supported by thread_priority crate
@@ -155,7 +155,7 @@ pub fn setup_miner_thread(cpu: u32) {
 mod test {
     use std::net::IpAddr;
 
-    use crate::{check_domain, is_yggdrasil};
+    use crate::{check_domain, is_ruvchain};
 
     #[test]
     fn test_check_domain() {
@@ -179,18 +179,18 @@ mod test {
     }
 
     #[test]
-    fn test_is_yggdrasil() {
-        let addr: IpAddr = "200::1".parse().unwrap();
-        assert!(is_yggdrasil(&addr));
+    fn test_is_ruvchain() {
+        let addr: IpAddr = "fa00::1".parse().unwrap();
+        assert!(is_ruvchain(&addr));
         let addr: IpAddr = "226::1".parse().unwrap();
-        assert!(is_yggdrasil(&addr));
-        let addr: IpAddr = "300::1".parse().unwrap();
-        assert!(is_yggdrasil(&addr));
+        assert!(is_ruvchain(&addr));
+        let addr: IpAddr = "fb00::1".parse().unwrap();
+        assert!(is_ruvchain(&addr));
         let addr: IpAddr = "326::1".parse().unwrap();
-        assert!(is_yggdrasil(&addr));
+        assert!(is_ruvchain(&addr));
         let addr: IpAddr = "2001::1".parse().unwrap();
-        assert!(!is_yggdrasil(&addr));
+        assert!(!is_ruvchain(&addr));
         let addr: IpAddr = "2201::1".parse().unwrap();
-        assert!(!is_yggdrasil(&addr));
+        assert!(!is_ruvchain(&addr));
     }
 }

@@ -43,11 +43,11 @@ impl Options {
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 pub struct ZoneData {
     pub name: String,
-    pub yggdrasil: bool
+    pub ruvchain: bool
 }
 
 impl Display for ZoneData {
     fn fmt(&self, f: &mut Formatter<'_>) -> core::fmt::Result {
-        f.write_str(&format!("{}, yggdrasil: {}", self.name, self.yggdrasil))
+        f.write_str(&format!("{}, ruvchain: {}", self.name, self.ruvchain))
     }
 }

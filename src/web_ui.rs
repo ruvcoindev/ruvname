@@ -426,13 +426,13 @@ fn action_create_domain(context: Arc<Mutex<Context>>, miner: Arc<Mutex<Miner>>, 
         let _ = web_view.eval("domainMiningUnavailable();");
         return;
     }
-    // Check if yggdrasil only quality of zone is not violated
+    // Check if ruvchain only quality of zone is not violated
     let zones = context.chain.get_zones();
     for z in zones {
-        if z.name == data.zone && z.yggdrasil {
+        if z.name == data.zone && z.ruvchain {
             for record in &data.records {
-                if !is_yggdrasil_record(record) {
-                    show_warning(web_view, &format!("Zone {} is Yggdrasil only, you cannot use IPs from clearnet!", &data.zone));
+                if !is_ruvchain_record(record) {
+                    show_warning(web_view, &format!("Zone {} is Ruvchain only, you cannot use IPs from clearnet!", &data.zone));
                     let _ = web_view.eval("domainMiningUnavailable();");
                     return;
                 }
