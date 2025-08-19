@@ -144,7 +144,7 @@ jobs:
 
       - name: Upload zip
         id: upload-zip
-        uses: actions/upload-release-asset@v4
+        uses: actions/upload-release-asset@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
@@ -156,7 +156,7 @@ jobs:
       - name: Upload Edge binary
         if: contains(matrix.os, 'windows')
         id: upload-edge-binary
-        uses: actions/upload-release-asset@v4
+        uses: actions/upload-release-asset@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
