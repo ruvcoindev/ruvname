@@ -1,0 +1,43 @@
+# The hash of first block in a chain to know with which nodes to work
+origin = ""
+# Paths to your key files to load automatically
+key_files = ["key1.toml", "key2.toml", "key3.toml", "key4.toml", "key5.toml"]
+# How many last blocks to check on start
+check_blocks = 8
+
+# Network settings
+[net]
+# All bootstrap nodes
+peers = ["[fa00:4715:66fa:2bd:3032:b5d1:e86f:239c]:6890","[fa01:4d05:21d7:372b:2060:efe4:c759:a803]:6890","[fa00:a79c:1f4b:b5c7:956a:137a:8856:acfe]:6890"]
+# Your node will listen on that address for other nodes to connect
+listen = "[::]:6890"
+# Set true if you want your IP to participate in peer-exchange, or false otherwise
+public = true
+# Allow connections to/from Ruvchain
+ruvchain_only = false
+
+# DNS resolver options
+[dns]
+# Your DNS resolver will be listening on this address and port (Usual port is 53)
+listen = "127.0.0.1:5311"
+# How many threads to spawn by DNS server
+threads = 10
+# AdGuard DNS servers to filter ads and trackers
+forwarders = ["https://dns.adguard.com/dns-query"]
+#forwarders = ["94.140.14.14:53", "94.140.15.15:53"]
+# Cloudflare servers
+#forwarders = ["https://cloudflare-dns.com/dns-query"]
+#forwarders = ["1.1.1.1:53", "1.0.0.1:53"]
+
+# Bootstrap DNS-servers to resolve domains of DoH providers
+bootstraps = ["9.9.9.9:53", "94.140.14.14:53"]
+
+# Hosts file support (resolve local names or block ads)
+#hosts = ["system", "adblock.txt"]
+
+#Mining options
+[mining]
+# How many CPU threads to spawn for mining, zero = number of CPU cores
+threads = 0
+# Set lower priority for mining threads
+lower = true
