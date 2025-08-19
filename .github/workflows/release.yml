@@ -1,0 +1,167 @@
+# .github/workflows/release.yml
+name: Release & Publish
+
+on:
+  push:
+    tags:
+      - 'v[0-9]+.[0-9]+.[0-9]+'  # v1.2.3
+
+env:
+  GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+  CARGO_TERM_COLOR: always
+
+jobs:
+  get_version:
+    name: Get Version from Tag
+    runs-on: ubuntu-22.04
+    outputs:
+      version: ${{ env.VERSION }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Extract version
+        run: echo "VERSION=${GITHUB_REF#refs/tags/v}" >> $GITHUB_ENV
+
+  create_release:
+    name: Create Release
+    needs: get_version
+    runs-on: ubuntu-22.04
+    outputs:
+      upload_url: ${{ steps.create_release.outputs.upload_url }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Create Release
+        id: create_release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v${{ needs.get_version.outputs.version }}
+          name: v${{ needs.get_version.outputs.version }}
+          body: |
+            ## New Features
+            * Added new features.
+            ## Bug Fixes & Improvements
+            * Various fixes and stability improvements.
+            ## Documentation & Others
+            * Updated documentation.
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  build_linux:
+    name: Build Linux Binaries
+    needs: [create_release, get_version]
+    runs-on: ubuntu-22.04
+    strategy:
+      matrix:
+        arch: [x86_64, aarch64]
+    env:
+      TARGET: ${{ matrix.arch }}-unknown-linux-gnu
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          sudo apt update
+          sudo apt install -y libwebkit2gtk-4.0-dev upx pkg-config libssl-dev
+
+      - name: Install cross
+        run: cargo install cross
+
+      - name: Build release
+        run: cross build --target ${{ env.TARGET }} --release
+
+      - name: Package
+        run: |
+          mkdir -p dist
+          cp target/${{ env.TARGET }}/release/ruvname ruvname.toml README.md LICENSE dist/
+          cd dist && zip -r ruvname-linux-${{ matrix.arch }}-v${{ needs.get_version.outputs.version }}.zip *
+
+      - name: Upload asset
+        uses: actions/upload-release-asset@v4
+        with:
+          upload_url: ${{ needs.create_release.outputs.upload_url }}
+          asset_path: dist/ruvname-linux-${{ matrix.arch }}-v${{ needs.get_version.outputs.version }}.zip
+          asset_name: ruvname-linux-${{ matrix.arch }}-v${{ needs.get_version.outputs.version }}.zip
+          asset_content_type: application/zip
+
+  build_windows:
+    name: Build Windows Binaries
+    needs: [create_release, get_version]
+    runs-on: windows-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Build release
+        run: cargo build --release --features "edge"
+
+      - name: Package
+        run: |
+          mkdir dist
+          cp target/release/ruvname.exe ruvname.toml README.md LICENSE dist/
+          Compress-Archive -Path dist/* -DestinationPath dist/ruvname-windows-amd64-v${{ needs.get_version.outputs.version }}.zip
+
+      - name: Upload asset
+        uses: actions/upload-release-asset@v4
+        with:
+          upload_url: ${{ needs.create_release.outputs.upload_url }}
+          asset_path: dist/ruvname-windows-amd64-v${{ needs.get_version.outputs.version }}.zip
+          asset_name: ruvname-windows-amd64-v${{ needs.get_version.outputs.version }}.zip
+          asset_content_type: application/zip
+
+  build_deb:
+    name: Build DEB Packages
+    needs: [create_release, get_version]
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Build DEB
+        run: |
+          mkdir -p dist
+          PKGARCH=amd64 contrib/deb/generate.sh
+          mv *.deb dist/
+
+      - name: Upload DEB
+        uses: actions/upload-release-asset@v4
+        with:
+          upload_url: ${{ needs.create_release.outputs.upload_url }}
+          asset_path: dist/*.deb
+          asset_name: ruvname-linux-amd64-v${{ needs.get_version.outputs.version }}.deb
+          asset_content_type: application/vnd.debian.binary-package
+
+  build_ipk:
+    name: Build OpenWrt .ipk
+    needs: [create_release, get_version]
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup OpenWrt SDK
+        run: |
+          wget https://downloads.openwrt.org/releases/24.10.0/targets/x86/64/openwrt-sdk-24.10.0-x86-64_gcc-13.3.0_musl.Linux-x86_64.tar.xz
+          tar -xf openwrt-sdk-24.10.0-x86-64_gcc-13.3.0_musl.Linux-x86_64.tar.xz
+          cd openwrt-sdk-* && make defconfig
+
+      - name: Build .ipk
+        run: |
+          cd openwrt-sdk-*/
+          mkdir -p package/ruvchain/files
+          cp ../../src/ipk/Makefile package/ruvchain/
+          cp ../../src/ipk/files/* package/ruvchain/files/
+          make package/ruvchain/compile V=s
+
+      - name: Upload .ipk
+        uses: actions/upload-release-asset@v4
+        with:
+          upload_url: ${{ needs.create_release.outputs.upload_url }}
+          asset_path: openwrt-sdk-*/bin/packages/x86_64/base/ruvchain_*.ipk
+          asset_name: ruvchain-openwrt-x86-64-v${{ needs.get_version.outputs.version }}.ipk
+          asset_content_type: application/octet-stream

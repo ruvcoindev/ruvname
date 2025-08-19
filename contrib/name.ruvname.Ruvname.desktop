@@ -1,0 +1,14 @@
+[Desktop Entry]
+Categories=Network;P2P;
+Exec=ruvname %U
+GenericName=Ruvname client
+Comment=A decentralized DNS and mesh network protocol
+Icon=ruvname
+MimeType=application/x-ruvname;
+Name=Ruvname
+Terminal=false
+Type=Application
+StartupNotify=false
+StartupWMClass=ruvname
+Keywords=dns;p2p;
+Path=

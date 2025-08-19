@@ -1,6 +1,6 @@
 # ![](/img/logo/32px.png) Ruvname
 
-![Builds](https://github.com/ruvcoindev/Ruvname/actions/workflows/rust_build_and_test.yml/badge.svg)
+![Builds](https://github.com/ruvcoindev/ruvname/actions/workflows/rust_build_and_test.yml/badge.svg)
 
 A decentralized DNS and mesh network protocol
 
@@ -32,7 +32,7 @@ But, `.anon` and `.ygg` are bound to have IP-addresses from Ruvchain Network onl
 ## Building and running
 
 ### On every OS
-You can download and run already built binaries from [releases](https://github.com/ruvcoindev/Ruvname/releases), or you can build project yourself.
+You can download and run already built binaries from [releases](https://github.com/ruvcoindev/ruvname/releases), or you can build project yourself.
 
 You can build Ruvname by issuing `cargo build --release` and `cargo run --release` commands in a directory of cloned repository.
 
@@ -46,7 +46,7 @@ You don't need any additional steps to build Ruvname, just stick to the MSVC ver
 
 If you see an error about missing `VCRUNTIME140.dll` when running ruvname you will need to install [VC Redistributable](https://www.microsoft.com/en-us/download/details.aspx?id=52685) from Microsoft.
 
-If you want to use modern browser engine from Edge instead of old from IE, you need to build with this command: `cargo build --release --features "edge"` (or use corresponding build from [releases](https://github.com/ruvcoindev/Ruvname/releases)).
+If you want to use modern browser engine from Edge instead of old from IE, you need to build with this command: `cargo build --release --features "edge"` (or use corresponding build from [releases](https://github.com/ruvcoindev/ruvname/releases)).
 
 ### ![Windows Logo](/img/windows.svg) On Windows (MINGW64)
 If you'd rather use Gnu version of Rust you can build Ruvname by these steps:
@@ -133,7 +133,7 @@ docker run --rm --name ruvname -p 53:53/tcp -p 53:53/udp cofob/ruvname
 
 ### GUI version Windows/Linux/macOS (if you want to create and change domains)
 If you want to create and manage your own domains on blockchain, you will need a version with GUI.
-You can download it from [releases](https://github.com/ruvcoindev/Ruvname/releases) section, choose appropriate OS and architecture version.
+You can download it from [releases](https://github.com/ruvcoindev/ruvname/releases) section, choose appropriate OS and architecture version.
 It needs to be without `nogui` suffix.
 
 Just unzip that archive in some directory and run `ruvname` (or `ruvname.exe`) binary.

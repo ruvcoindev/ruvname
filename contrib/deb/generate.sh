@@ -55,7 +55,7 @@ mkdir -p /tmp/$PKGNAME/usr/bin/
 mkdir -p /tmp/$PKGNAME/etc/systemd/system/
 
 cat > /tmp/$PKGNAME/debian/changelog << EOF
-Please see https://github.com/ruvcoindev/Ruvname/
+Please see https://github.com/ruvcoindev/ruvname/
 EOF
 echo 9 > /tmp/$PKGNAME/debian/compat
 cat > /tmp/$PKGNAME/debian/control << EOF
@@ -66,18 +66,18 @@ Priority: extra
 Architecture: $PKGARCH
 Replaces: $PKGREPLACES
 Conflicts: $PKGREPLACES
-Maintainer: ruvcoindev <r@revertron.com>
+Maintainer: ruvcoindev <admin@ruvcha.in>
 Description: RUVNAME
- RUVNAME (ALternative Free Identity System) is an implementation of a Domain Name System
+ RUVNAME is an implementation of a Domain Name System
  based on a small, slowly growing blockchain. It is lightweight, self-contained,
  supported on multiple platforms and contains DNS-resolver on its own to resolve domain records
  contained in blockchain and forward DNS requests of ordinary domain zones to upstream forwarders.
 EOF
 cat > /tmp/$PKGNAME/debian/copyright << EOF
-Please see https://github.com/ruvcoindev/Ruvname/
+Please see https://github.com/ruvcoindev/ruvname/
 EOF
 cat > /tmp/$PKGNAME/debian/docs << EOF
-Please see https://github.com/ruvcoindev/Ruvname/
+Please see https://github.com/ruvcoindev/ruvname/
 EOF
 cat > /tmp/$PKGNAME/debian/install << EOF
 usr/bin/ruvname usr/bin
