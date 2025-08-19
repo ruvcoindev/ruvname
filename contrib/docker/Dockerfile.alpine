@@ -4,7 +4,7 @@ LABEL Description="Ruvname A decentralized DNS and mesh network protocol"
 LABEL URL="https://github.com/ruvcoindev/Ruvname/releases"
 
 ARG arch=amd64
-ARG srv_port=4244
+ARG srv_port=6890
 ARG dns_port=53
 
 RUN apk add --no-cache curl && \

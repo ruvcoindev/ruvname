@@ -40,7 +40,7 @@ pub const RUVNAME_DEBUG: &str = "RUVNAME_DEBUG";
 pub const RUVNAME_TRACE: &str = "RUVNAME_TRACE";
 
 /// Public nodes listen port
-pub const LISTEN_PORT: u16 = 4244;
+pub const LISTEN_PORT: u16 = 6890;
 pub const UI_REFRESH_DELAY_MS: u128 = 500;
 pub const LOG_REFRESH_DELAY_SEC: u64 = 60;
 

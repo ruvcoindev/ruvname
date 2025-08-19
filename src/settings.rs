@@ -108,8 +108,8 @@ pub struct Net {
 impl Default for Net {
     fn default() -> Self {
         Net {
-            peers: vec![String::from("test-ip4.ruvname.name:4244"), String::from("test-ip6.ruvname.name:4244")],
-            listen: String::from("[::]:4244"),
+            peers: vec![String::from("[fa00:4715:66fa:2bd:3032:b5d1:e86f:239c]:6890"), String::from("[fa01:4d05:21d7:372b:2060:efe4:c759:a803]:6890")],
+            listen: String::from("[::]:6890"),
             public: true,
             ruvchain_only: false
         }
@@ -117,7 +117,7 @@ impl Default for Net {
 }
 
 fn default_listen() -> String {
-    String::from("[::]:4244")
+    String::from("[::]:6890")
 }
 
 fn default_listen_dns() -> String {
