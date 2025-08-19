@@ -1,5 +1,5 @@
 # The hash of first block in a chain to know with which nodes to work
-origin = ""
+origin = "067661AEE359CE85F95F6C3A3D994350979340011C0616D8296B0BF21E000000"
 # Paths to your key files to load automatically
 key_files = ["key1.toml", "key2.toml", "key3.toml", "key4.toml", "key5.toml"]
 # How many last blocks to check on start
@@ -40,4 +40,4 @@ bootstraps = ["9.9.9.9:53", "94.140.14.14:53"]
 # How many CPU threads to spawn for mining, zero = number of CPU cores
 threads = 0
 # Set lower priority for mining threads
-lower = true
+lower = false
