@@ -395,7 +395,7 @@ pub struct HttpsDnsClient {
 #[cfg(feature = "doh")]
 impl HttpsDnsClient {
     pub fn new(bootstraps: Vec<String>) -> Self {
-        let client_name = format!("ALFIS/{}", env!("CARGO_PKG_VERSION"));
+        let client_name = format!("RUVNAME/{}", env!("CARGO_PKG_VERSION"));
         let servers = bootstraps
             .iter()
             .filter_map(|addr| addr.parse().ok())

@@ -1,6 +1,6 @@
 #!/bin/sh
 
-# This is the "Service" file for ALFIS in OPKG environment
+# This is the "Service" file for RUVNAME in OPKG environment
 # Usually lives in /opt/etc/init.d/ directory
 
 ENABLED=yes

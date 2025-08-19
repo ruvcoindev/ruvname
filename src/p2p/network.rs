@@ -521,7 +521,7 @@ impl Network {
                 if origin.ne(my_origin) {
                     return State::Banned;
                 } else if version > my_version {
-                    warn!("Can't work with newer blockchain version {} and ALFIS version {}, please upgrade!", version, &app_version);
+                    warn!("Can't work with newer blockchain version {} and RUVNAME version {}, please upgrade!", version, &app_version);
                     return State::Banned;
                 } else if version != my_version {
                     return State::Banned;

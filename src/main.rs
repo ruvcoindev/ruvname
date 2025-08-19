@@ -25,7 +25,7 @@ use std::thread::JoinHandle;
 use ruvname::event::Event;
 use ruvname::eventbus::{post, register};
 use ruvname::keystore::create_key;
-use ruvname::{dns_utils, Block, Bytes, Chain, Context, Keystore, Miner, Network, Settings, Transaction, ALFIS_DEBUG, ALFIS_TRACE, DB_NAME, ORIGIN_DIFFICULTY};
+use ruvname::{dns_utils, Block, Bytes, Chain, Context, Keystore, Miner, Network, Settings, Transaction, RUVNAME_DEBUG, RUVNAME_TRACE, DB_NAME, ORIGIN_DIFFICULTY};
 #[cfg(windows)]
 use crate::win_service::start_service;
 
@@ -86,7 +86,7 @@ fn main() {
     }
 
     if opt_matches.opt_present("v") {
-        println!("ALFIS v{}", env!("CARGO_PKG_VERSION"));
+        println!("RUVNAME v{}", env!("CARGO_PKG_VERSION"));
         exit(0);
     }
 
@@ -100,12 +100,12 @@ fn main() {
         let progdata = env::var("PROGRAMDATA").expect("Failed to get APPDATA directory");
 
         // Create a new directory inside the AppData directory
-        let new_directory = format!("{}\\ALFIS", progdata);
+        let new_directory = format!("{}\\RUVNAME", progdata);
         std::fs::create_dir_all(&new_directory).expect("Failed to create directory");
 
         // Change the current directory to the new directory
         env::set_current_dir(&new_directory).expect("Failed to change directory");
-        let mut file = File::create("ruvname.toml").expect("Failed to create ruvname.toml in AppData\\ALFIS");
+        let mut file = File::create("ruvname.toml").expect("Failed to create ruvname.toml in AppData\\RUVNAME");
         file.write_all(CONFIG.as_bytes()).expect("Failed to write ruvname.toml");
 
         use crate::win_service::*;
@@ -152,7 +152,7 @@ fn main() {
         let appdata = env::var("PROGRAMDATA").expect("Failed to get APPDATA directory");
 
         // Create a new directory inside the AppData directory
-        let new_directory = format!("{}\\ALFIS", appdata);
+        let new_directory = format!("{}\\RUVNAME", appdata);
         std::fs::create_dir_all(&new_directory).expect("Failed to create directory");
 
         // Change the current directory to the new directory
@@ -183,7 +183,7 @@ fn main() {
         });
     }
 
-    info!(target: LOG_TARGET_MAIN, "Starting ALFIS {}", env!("CARGO_PKG_VERSION"));
+    info!(target: LOG_TARGET_MAIN, "Starting RUVNAME {}", env!("CARGO_PKG_VERSION"));
 
     let settings = Settings::load(&config_name).unwrap_or_else(|| panic!("Cannot load settings from {}!", &config_name));
     debug!(target: LOG_TARGET_MAIN, "Loaded settings: {:?}", &settings);
@@ -331,10 +331,10 @@ pub fn start_services(settings: &Settings, context: &Arc<Mutex<Context>>) -> (bo
 /// Sets up logger in accordance with command line options
 fn setup_logger(opt_matches: &Matches, console_attached: bool) {
     let mut level = LevelFilter::Info;
-    if opt_matches.opt_present("d") || env::var(ALFIS_DEBUG).is_ok() {
+    if opt_matches.opt_present("d") || env::var(RUVNAME_DEBUG).is_ok() {
         level = LevelFilter::Debug;
     }
-    if opt_matches.opt_present("t") || env::var(ALFIS_TRACE).is_ok() {
+    if opt_matches.opt_present("t") || env::var(RUVNAME_TRACE).is_ok() {
         level = LevelFilter::Trace;
     }
     let mut builder = ConfigBuilder::new();

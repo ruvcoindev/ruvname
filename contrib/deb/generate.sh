@@ -1,7 +1,7 @@
 #!/bin/sh
 
 # This is a lazy script to create a .deb for Debian/Ubuntu. It installs
-# ALFIS and enables it in systemd. You can give it the PKGARCH= argument
+# RUVNAME and enables it in systemd. You can give it the PKGARCH= argument
 # i.e. PKGARCH=i386 sh contrib/deb/generate.sh
 
 if [ `pwd` != `git rev-parse --show-toplevel` ]
@@ -67,8 +67,8 @@ Architecture: $PKGARCH
 Replaces: $PKGREPLACES
 Conflicts: $PKGREPLACES
 Maintainer: ruvcoindev <r@revertron.com>
-Description: ALFIS
- ALFIS (ALternative Free Identity System) is an implementation of a Domain Name System
+Description: RUVNAME
+ RUVNAME (ALternative Free Identity System) is an implementation of a Domain Name System
  based on a small, slowly growing blockchain. It is lightweight, self-contained,
  supported on multiple platforms and contains DNS-resolver on its own to resolve domain records
  contained in blockchain and forward DNS requests of ordinary domain zones to upstream forwarders.
@@ -113,7 +113,7 @@ then
   fi
 else
   echo "Generating initial configuration file /etc/ruvname.conf"
-  echo "Please familiarise yourself with this file before starting ALFIS"
+  echo "Please familiarise yourself with this file before starting RUVNAME"
   sh -c 'umask 0027 && /usr/bin/ruvname -g > /etc/ruvname.conf'
   chgrp ruvname /etc/ruvname.conf
 fi

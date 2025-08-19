@@ -36,8 +36,8 @@ pub const MAX_DATA_LEN: usize = 255;
 pub const DB_NAME: &str = "blockchain.db";
 pub const CLASS_ORIGIN: &str = "origin";
 pub const CLASS_DOMAIN: &str = "domain";
-pub const ALFIS_DEBUG: &str = "ALFIS_DEBUG";
-pub const ALFIS_TRACE: &str = "ALFIS_TRACE";
+pub const RUVNAME_DEBUG: &str = "RUVNAME_DEBUG";
+pub const RUVNAME_TRACE: &str = "RUVNAME_TRACE";
 
 /// Public nodes listen port
 pub const LISTEN_PORT: u16 = 4244;

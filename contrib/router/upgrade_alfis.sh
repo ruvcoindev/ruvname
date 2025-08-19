@@ -1,6 +1,6 @@
 #!/opt/bin/bash
 
-# ALFIS upgrade script for Keenetic routers with Entware
+# RUVNAME upgrade script for Keenetic routers with Entware
 
 json=$(curl -s "https://api.github.com/repos/ruvcoindev/Ruvname/releases/latest")
 upstreamver=$(echo "$json" | jq -r ".tag_name")

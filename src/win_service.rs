@@ -16,7 +16,7 @@ use crate::start_services;
 // Define the service entry point and its behavior
 define_windows_service!(ffi_service_main, ruvname_service_main);
 
-pub const SERVICE_NAME: &str = "ALFIS";
+pub const SERVICE_NAME: &str = "RUVNAME";
 pub const SERVICE_DESCRIPTION: &str = "A decentralized DNS and mesh network protocol, DNS on a smallest blockchain.";
 
 lazy_static! {

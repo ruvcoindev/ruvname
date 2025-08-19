@@ -12,7 +12,7 @@ Not so clear? Hold on.
 The consistency of this database is based on [blockchain](https://en.wikipedia.org/wiki/Blockchain) technology, that prevents retroactive changing of data, and has strict cryptographical consensus.
 - DNS server with cache, like you have in your Internet-router. It resolves the domains from database and forwards all regular DNS-requests to some other resolver - your router, Google DNS, Cloudflare DNS, or [AdGuard DNS](https://dns.adguard.com/) (if you want to block ads and trackers).
 - Other systems need you to organize and run several DNS-servers to resolve their domains and regular domains, we have both in one.
-Moreover, ALFIS can forward requests of regular domains to [DNS-over-HTTPS](https://en.wikipedia.org/wiki/DNS_over_HTTPS) server. The security and privacy is right here.
+Moreover, RUVNAME can forward requests of regular domains to [DNS-over-HTTPS](https://en.wikipedia.org/wiki/DNS_over_HTTPS) server. The security and privacy is right here.
 - Convenient graphical user interface to create domains in this alternative domain system. If you want just to use it like a DNS-server you can run it with `-n` flag or just build/download the variant without GUI.
 
 
@@ -84,7 +84,7 @@ emerge net-dns/ruvname
 ## Installation
 
 ### Debian/Ubuntu (only blockchain DNS, without GUI)
-If you want to just use ALFIS as a DNS daemon and resolve domains in blockchain, as well as clearnet domains.
+If you want to just use RUVNAME as a DNS daemon and resolve domains in blockchain, as well as clearnet domains.
 You just need to install `ruvname` service from repo and change your resolver in `/etc/resolv.conf`.
 Beware of NetworkManager, it can change your resolvers at will.
 
@@ -97,7 +97,7 @@ gpg --export F244E16645D86D62 | sudo tee /usr/local/apt-keys/ruvname.gpg > /dev/
 ```
 echo 'deb [signed-by=/usr/local/apt-keys/ruvname.gpg] https://deb.revertron.com/ debian ruvname' | sudo tee /etc/apt/sources.list.d/ruvname.list
 ```
-3. Update packages and install ALFIS
+3. Update packages and install RUVNAME
 ```
 sudo apt update && sudo apt install ruvname
 ```
@@ -126,7 +126,7 @@ zypper install -y Ruvname
 systemctl enable --now ruvname
 ```
 ### Docker
-If you want to run ALFIS in docker container, you can do this by running:
+If you want to run RUVNAME in docker container, you can do this by running:
 ```shell
 docker run --rm --name ruvname -p 53:53/tcp -p 53:53/udp cofob/ruvname
 ```

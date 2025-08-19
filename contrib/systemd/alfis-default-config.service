@@ -1,5 +1,5 @@
 [Unit]
-Description=ALFIS default config generator
+Description=RUVNAME default config generator
 ConditionPathExists=|!/etc/ruvname.conf
 ConditionFileNotEmpty=|!/etc/ruvname.conf
 Wants=local-fs.target

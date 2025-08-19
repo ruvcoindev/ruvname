@@ -34,7 +34,7 @@ pub fn run_interface(context: Arc<Mutex<Context>>, miner: Arc<Mutex<Miner>>) {
     let scripts = inline_script(include_str!("webview/scripts.js"));
 
     let html = Content::Html(file_content.to_owned().replace("{styles}", &styles).replace("{scripts}", &scripts));
-    let title = format!("ALFIS {}", env!("CARGO_PKG_VERSION"));
+    let title = format!("RUVNAME {}", env!("CARGO_PKG_VERSION"));
     let mut interface = web_view::builder()
         .title(&title)
         .content(html)
