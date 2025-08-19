@@ -549,16 +549,29 @@ impl Chain {
         &self.zones
     }
 
-    fn load_zones() -> Vec<ZoneData> {
-        let mut result: Vec<ZoneData> = Vec::new();
-        let zones_text = ZONES_TXT.replace("\r", "");
-        let zones: Vec<_> = zones_text.split('\n').collect();
-        for zone in zones {
-            let ruvchain = zone == "ruv" || zone == "mesh" || zone == "node" || zone == "dnet" || zone == "p2p" || zone == "tamb" || zone == "tmb";
-            result.push(ZoneData { name: zone.to_owned(), ruvchain })
+fn load_zones() -> Vec<ZoneData> {
+    let mut result: Vec<ZoneData> = Vec::new();
+    let zones_text = ZONES_TXT.replace("\r", "");
+    let zones: Vec<&str> = zones_text
+        .lines()
+        .map(|s| s.trim())
+        .filter(|s| !s.is_empty()) // Убираем пустые строки
+        .collect();
+
+    for zone in zones {
+        // 🔽 Добавьте эту проверку
+        if zone.is_empty() {
+            continue; // На всякий случай
         }
-        result
+
+        let ruvchain = matches!(zone, "ruv" | "mesh" | "node" | "dnet" | "p2p" | "tamb" | "tmb");
+        result.push(ZoneData {
+            name: zone.to_owned(),
+            ruvchain,
+        });
     }
+    result
+}
 
     pub fn get_zones_hash() -> Bytes {
         Bytes::from_bytes(hash_sha256(ZONES_TXT.as_bytes()).as_slice())
@@ -1161,5 +1174,25 @@ pub mod tests {
         let buf = serde_cbor::to_vec(&block).unwrap();
         let block2: Block = serde_cbor::from_slice(&buf[..]).unwrap();
         assert_eq!(block, block2);
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_load_zones_no_empty() {
+        let zones = load_zones();
+        for z in &zones {
+            assert!(!z.name.is_empty(), "Found empty zone name!");
+        }
+    }
+
+    #[test]
+    fn test_load_zones_has_ruv() {
+        let zones = load_zones();
+        let has_ruv = zones.iter().any(|z| z.name == "ruv");
+        assert!(has_ruv, "Zone 'ruv' not found");
     }
 }
