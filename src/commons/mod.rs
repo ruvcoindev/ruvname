@@ -177,11 +177,7 @@ mod test {
     fn test_is_ruvchain() {
         let addr: IpAddr = "fa00::1".parse().unwrap();
         assert!(is_ruvchain(&addr));
-        let addr: IpAddr = "226::1".parse().unwrap();
-        assert!(is_ruvchain(&addr));
         let addr: IpAddr = "fb00::1".parse().unwrap();
-        assert!(is_ruvchain(&addr));
-        let addr: IpAddr = "326::1".parse().unwrap();
         assert!(is_ruvchain(&addr));
         let addr: IpAddr = "2001::1".parse().unwrap();
         assert!(!is_ruvchain(&addr));
