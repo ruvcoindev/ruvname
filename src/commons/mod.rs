@@ -3,7 +3,7 @@ use std::num;
 
 pub use constants::*;
 use rand::Rng;
-#[cfg(not(any(target_os = "macos", target_os = "dragonfly")))]
+
 use thread_priority::*;
 
 use crate::dns::protocol::DnsRecord;
@@ -145,11 +145,6 @@ pub fn setup_miner_thread(cpu: u32) {
     let _ = set_current_thread_priority(ThreadPriority::Min);
 }
 
-#[cfg(any(target_os = "macos", target_os = "dragonfly"))]
-#[allow(unused_variables)]
-pub fn setup_miner_thread(cpu: u32) {
-    // MacOS is not supported by thread_priority crate
-}
 
 #[cfg(test)]
 mod test {
