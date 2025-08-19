@@ -146,11 +146,6 @@ pub fn setup_miner_thread(cpu: u32) {
 }
 
 
-#[allow(unused_variables)]
-pub fn setup_miner_thread(cpu: u32) {
-    // MacOS is not supported by thread_priority crate
-}
-
 #[cfg(test)]
 mod test {
     use std::net::IpAddr;
