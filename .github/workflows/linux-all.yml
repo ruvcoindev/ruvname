@@ -1,4 +1,3 @@
-# .github/workflows/linux-all.yml
 name: Linux - All Builds
 
 on:
