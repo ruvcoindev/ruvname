@@ -19,7 +19,7 @@ ruvchain_only = false
 # DNS resolver options
 [dns]
 # Your DNS resolver will be listening on this address and port (Usual port is 53)
-listen = "127.0.0.1:5311"
+listen = "127.0.0.1:5312"
 # How many threads to spawn by DNS server
 threads = 10
 # AdGuard DNS servers to filter ads and trackers
