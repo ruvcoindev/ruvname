@@ -176,3 +176,19 @@ jobs:
           asset_path: ${{ env.ZIP_NAME_EDGE }}
           asset_name: ${{ env.ZIP_NAME_EDGE }}
           asset_content_type: application/zip
+
+- name: Packaging GUI
+  if: contains(matrix.os, 'ubuntu')
+  uses: papeloto/action-zip@v1
+  with:
+    files: ./target/release/ruvname ruvname.toml README.md LICENSE adblock.txt
+    dest: ruvname-linux-amd64-${{ needs.get_version.outputs.project_version }}-gui.zip
+
+- name: Upload GUI zip
+  if: contains(matrix.os, 'ubuntu')
+  uses: actions/upload-release-asset@v1
+  with:
+    upload_url: ${{ needs.make_release.outputs.upload_url }}
+    asset_path: ruvname-linux-amd64-${{ needs.get_version.outputs.project_version }}-gui.zip
+    asset_name: ruvname-linux-amd64-${{ needs.get_version.outputs.project_version }}-gui.zip
+    asset_content_type: application/zip
