@@ -1,0 +1,22 @@
+[Unit]
+Description=RUVNAME - RUVchain NAMEspace
+After=network.target
+
+[Service]
+Type=simple
+User=nobody
+Group=nogroup
+ExecStart=/usr/bin/ruvname -n -c /etc/ruvname.conf
+Restart=always
+RestartSec=3
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=ruvname
+
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+
+[Install]
+WantedBy=multi-user.target

@@ -5,3 +5,6 @@
 .idea
 edge
 blockchain.db
+bin
+ruvname-*
+ruvname
