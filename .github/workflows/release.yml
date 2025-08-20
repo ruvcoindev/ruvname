@@ -46,20 +46,15 @@ jobs:
             * Various fixes and stability improvements.
             ## Documentation & Others
             * Updated documentation.
-          draft: true
+          draft: false
           prerelease: false
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-  build_linux:
-    name: Build Linux Binaries
+  build_linux_gui:
+    name: Build Linux GUI Binary
     needs: [create_release, get_version]
     runs-on: ubuntu-22.04
-    strategy:
-      matrix:
-        arch: [x86_64, aarch64]
-    env:
-      TARGET: ${{ matrix.arch }}-unknown-linux-gnu
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -67,51 +62,73 @@ jobs:
       - name: Install dependencies
         run: |
           sudo apt update
-          sudo apt install -y libwebkit2gtk-4.0-dev upx pkg-config libssl-dev
+          sudo apt install -y libwebkit2gtk-4.0-dev upx
 
-      - name: Install cross
-        run: cargo install cross
+      - name: Build release (with GUI)
+        run: cargo build --release
 
-      - name: Build release
-        run: cross build --target ${{ env.TARGET }} --release
-
-      - name: Package
+      - name: Package GUI
         run: |
           mkdir -p dist
-          cp target/${{ env.TARGET }}/release/ruvname ruvname.toml README.md LICENSE dist/
-          cd dist && zip -r ruvname-linux-${{ matrix.arch }}-v${{ needs.get_version.outputs.version }}.zip *
+          cp target/release/ruvname ruvname.toml README.md LICENSE adblock.txt dist/
+          cd dist && zip -r ruvname-linux-amd64-v${{ needs.get_version.outputs.version }}-gui.zip *
 
-      - name: Upload asset
-        uses: actions/upload-release-asset@v1
+      - name: Upload GUI asset
+        uses: actions/upload-release-asset@v4
         with:
           upload_url: ${{ needs.create_release.outputs.upload_url }}
-          asset_path: dist/ruvname-linux-${{ matrix.arch }}-v${{ needs.get_version.outputs.version }}.zip
-          asset_name: ruvname-linux-${{ matrix.arch }}-v${{ needs.get_version.outputs.version }}.zip
+          asset_path: dist/ruvname-linux-amd64-v${{ needs.get_version.outputs.version }}-gui.zip
+          asset_name: ruvname-linux-amd64-v${{ needs.get_version.outputs.version }}-gui.zip
           asset_content_type: application/zip
 
-  build_windows:
-    name: Build Windows Binaries
+  build_linux_nogui:
+    name: Build Linux NoGUI Binary
+    needs: [create_release, get_version]
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Build release (no GUI)
+        run: cargo build --release --no-default-features
+
+      - name: Package NoGUI
+        run: |
+          mkdir -p dist
+          cp target/release/ruvname ruvname.toml README.md LICENSE adblock.txt dist/
+          cd dist && zip -r ruvname-linux-amd64-v${{ needs.get_version.outputs.version }}-nogui.zip *
+
+      - name: Upload NoGUI asset
+        uses: actions/upload-release-asset@v4
+        with:
+          upload_url: ${{ needs.create_release.outputs.upload_url }}
+          asset_path: dist/ruvname-linux-amd64-v${{ needs.get_version.outputs.version }}-nogui.zip
+          asset_name: ruvname-linux-amd64-v${{ needs.get_version.outputs.version }}-nogui.zip
+          asset_content_type: application/zip
+
+  build_windows_nogui:
+    name: Build Windows NoGUI Binary
     needs: [create_release, get_version]
     runs-on: windows-latest
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Build release
-        run: cargo build --release --features "edge"
+      - name: Build release (no GUI)
+        run: cargo build --release --no-default-features
 
-      - name: Package
+      - name: Package NoGUI
         run: |
           mkdir dist
-          cp target/release/ruvname.exe ruvname.toml README.md LICENSE dist/
-          Compress-Archive -Path dist/* -DestinationPath dist/ruvname-windows-amd64-v${{ needs.get_version.outputs.version }}.zip
+          cp target/release/ruvname.exe ruvname.toml README.md LICENSE adblock.txt dist/
+          Compress-Archive -Path dist/* -DestinationPath dist/ruvname-windows-amd64-v${{ needs.get_version.outputs.version }}-nogui.zip
 
-      - name: Upload asset
-        uses: actions/upload-release-asset@v1
+      - name: Upload Windows NoGUI
+        uses: actions/upload-release-asset@v4
         with:
           upload_url: ${{ needs.create_release.outputs.upload_url }}
-          asset_path: dist/ruvname-windows-amd64-v${{ needs.get_version.outputs.version }}.zip
-          asset_name: ruvname-windows-amd64-v${{ needs.get_version.outputs.version }}.zip
+          asset_path: dist/ruvname-windows-amd64-v${{ needs.get_version.outputs.version }}-nogui.zip
+          asset_name: ruvname-windows-amd64-v${{ needs.get_version.outputs.version }}-nogui.zip
           asset_content_type: application/zip
 
   build_deb:
@@ -122,17 +139,21 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Build DEB
+      - name: Install cross
+        run: cargo install cross
+
+      - name: Build with cross (x86_64-unknown-linux-musl)
+        run: cross build --target x86_64-unknown-linux-musl --release
+
+      - name: Build DEB package
         run: |
-          mkdir -p dist
           PKGARCH=amd64 contrib/deb/generate.sh
-          mv *.deb dist/
 
       - name: Upload DEB
-        uses: actions/upload-release-asset@v1
+        uses: actions/upload-release-asset@v4
         with:
           upload_url: ${{ needs.create_release.outputs.upload_url }}
-          asset_path: dist/*.deb
+          asset_path: ruvname-amd64-v${{ needs.get_version.outputs.version }}.deb
           asset_name: ruvname-linux-amd64-v${{ needs.get_version.outputs.version }}.deb
           asset_content_type: application/vnd.debian.binary-package
 
@@ -144,24 +165,37 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      - name: Install cross
+        run: cargo install cross
+
+      - name: Build for mipsel
+        run: cross build --target mipsel-unknown-linux-musl --release
+
       - name: Setup OpenWrt SDK
         run: |
-          wget https://downloads.openwrt.org/releases/24.10.0/targets/x86/64/openwrt-sdk-24.10.0-x86-64_gcc-13.3.0_musl.Linux-x86_64.tar.xz
-          tar -xf openwrt-sdk-24.10.0-x86-64_gcc-13.3.0_musl.Linux-x86_64.tar.xz
-          cd openwrt-sdk-* && make defconfig
+          wget https://downloads.openwrt.org/releases/24.10.0/targets/generic/mipsel_24kc/openwrt-sdk-24.10.0-glibc-mipsel_24kc.Linux-x86_64.tar.xz
+          tar -xf openwrt-sdk-*.tar.xz
+          mv openwrt-sdk-* openwrt-sdk
+
+      - name: Copy package
+        run: |
+          mkdir -p openwrt-sdk/package/ruvname/files/etc/init.d
+          mkdir -p openwrt-sdk/package/ruvname/files/etc/config
+          cp contrib/openwrt/package/ruvname/Makefile openwrt-sdk/package/ruvname/
+          cp contrib/openwrt/package/ruvname/files/etc/init.d/ruvname openwrt-sdk/package/ruvname/files/etc/init.d/
+          cp contrib/openwrt/package/ruvname/files/etc/config/ruvname openwrt-sdk/package/ruvname/files/etc/config/
+          cp target/mipsel-unknown-linux-musl/release/ruvname openwrt-sdk/package/ruvname/
 
       - name: Build .ipk
+        working-directory: openwrt-sdk
         run: |
-          cd openwrt-sdk-*/
-          mkdir -p package/ruvchain/files
-          cp ../../src/ipk/Makefile package/ruvchain/
-          cp ../../src/ipk/files/* package/ruvchain/files/
-          make package/ruvchain/compile V=s
+          make defconfig
+          make package/ruvname/compile V=s
 
       - name: Upload .ipk
-        uses: actions/upload-release-asset@v1
+        uses: actions/upload-release-asset@v4
         with:
           upload_url: ${{ needs.create_release.outputs.upload_url }}
-          asset_path: openwrt-sdk-*/bin/packages/x86_64/base/ruvchain_*.ipk
-          asset_name: ruvchain-openwrt-x86-64-v${{ needs.get_version.outputs.version }}.ipk
+          asset_path: openwrt-sdk/bin/packages/mipsel_generic/base/ruvname_*.ipk
+          asset_name: ruvname-openwrt-mipsel-v${{ needs.get_version.outputs.version }}.ipk
           asset_content_type: application/octet-stream
