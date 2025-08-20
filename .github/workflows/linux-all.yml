@@ -1,5 +1,5 @@
 # .github/workflows/linux-all.yml
-name: Linux: All Builds
+name: Linux - All Builds
 
 on:
   push:
