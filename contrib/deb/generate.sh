@@ -10,6 +10,13 @@ then
   exit 1
 fi
 
+# Проверка версии
+BINARY_VERSION=$(./target/release/ruvname --version | grep -o 'v[0-9.]*')
+if [ "$BINARY_VERSION" != "v$VERSION" ]; then
+    echo "Ошибка: бинарник имеет версию $BINARY_VERSION, а ожидается v$VERSION"
+    exit 1
+fi
+
 #PKGBRANCH=$(basename `git name-rev --name-only HEAD`)
 PKGNAME=$(sh contrib/semver/name.sh)
 PKGVERSION=$(sh contrib/semver/version.sh --bare)
