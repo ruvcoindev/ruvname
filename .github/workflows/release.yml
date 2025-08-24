@@ -1,5 +1,5 @@
 # .github/workflows/release.yml
-name: Release & Publish
+name: Release & Publish + ipk
 
 on:
   push:
