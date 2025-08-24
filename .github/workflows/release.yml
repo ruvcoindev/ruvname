@@ -1,10 +1,11 @@
 # .github/workflows/release.yml
-name: Release & Publish
+name: 🚀 Full Release: Linux, Windows, OpenWrt
 
 on:
   push:
     tags:
-      - 'v[0-9]+.[0-9]+.[0-9]+'  # v1.2.3
+      - 'v[0-9]+.[0-9]+.[0-9]+'
+  workflow_dispatch:
 
 env:
   GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -12,27 +13,22 @@ env:
 
 jobs:
   get_version:
-    name: Get Version from Tag
+    name: Get Version
     runs-on: ubuntu-22.04
     outputs:
       version: ${{ env.VERSION }}
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Extract version
-        run: echo "VERSION=${GITHUB_REF#refs/tags/v}" >> $GITHUB_ENV
+      - uses: actions/checkout@v4
+      - run: echo "VERSION=${GITHUB_REF#refs/tags/v}" >> $GITHUB_ENV
 
   create_release:
-    name: Create Release
+    name: Create Draft Release
     needs: get_version
     runs-on: ubuntu-22.04
     outputs:
       upload_url: ${{ steps.create_release.outputs.upload_url }}
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
+      - uses: actions/checkout@v4
       - name: Create Release
         id: create_release
         uses: softprops/action-gh-release@v2
@@ -40,65 +36,84 @@ jobs:
           tag_name: v${{ needs.get_version.outputs.version }}
           name: v${{ needs.get_version.outputs.version }}
           body: |
-            ## New Features
-            * Added new features.
-            ## Bug Fixes & Improvements
-            * Various fixes and stability improvements.
-            ## Documentation & Others
-            * Updated documentation.
+            ## 🚀 Full Release
+            * Linux: amd64, i686, arm64, armhf, armlf, mips, mipsel
+            * Windows: x64, x86 (32-bit), GUI & NoGUI
+            * OpenWrt: .ipk for all router architectures
           draft: true
           prerelease: false
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-  build_linux_gui:
-    name: Build Linux GUI Binary (x86_64)
-    needs: [create_release, get_version]
+  # === Сборка всех .deb для Linux ===
+  build_deb:
+    name: Build .deb for ${{ matrix.arch }}
+    needs: create_release
     runs-on: ubuntu-22.04
+    strategy:
+      matrix:
+        arch: [amd64, i686, armhf, armlf, arm64, mips, mipsel]
+        target: [
+          x86_64-unknown-linux-musl,
+          i686-unknown-linux-musl,
+          armv7-unknown-linux-musleabihf,
+          arm-unknown-linux-musleabi,
+          aarch64-unknown-linux-musl,
+          mips-unknown-linux-musl,
+          mipsel-unknown-linux-musl
+        ]
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Install dependencies
+      - uses: actions/checkout@v4
+      - name: Install deps
         run: |
           sudo apt update
-          sudo apt install -y libwebkit2gtk-4.0-dev upx
+          sudo apt install -y upx
+          cargo install cross
+      - name: Build & package
+        run: |
+          PKGARCH=${{ matrix.arch }} \
+          TARGET=${{ matrix.target }} \
+          cross build --target ${{ matrix.target }} --release --no-default-features && \
+          PKGARCH=${{ matrix.arch }} bash contrib/deb/generate.sh
+      - name: Upload .deb
+        uses: actions/upload-release-asset@v1
+        with:
+          upload_url: ${{ needs.create_release.outputs.upload_url }}
+          asset_path: ruvname-${{ matrix.arch }}-v${{ needs.get_version.outputs.version }}.deb
+          asset_name: ruvname-linux-${{ matrix.arch }}-v${{ needs.get_version.outputs.version }}.deb
+          asset_content_type: application/vnd.debian.binary-package
 
-      - name: Build release (with GUI)
+  # === Сборка .zip для Linux (GUI и NoGUI) ===
+  build_linux_zip:
+    name: Build Linux ZIP (x86_64)
+    needs: create_release
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install deps
+        run: sudo apt install -y libwebkit2gtk-4.0-dev upx
+      - name: Build GUI
         run: cargo build --release
-
-      - name: Package GUI
+      - name: Build NoGUI
+        run: cargo build --release --no-default-features
+      - name: Package GUI ZIP
         run: |
           mkdir -p dist
-          cp target/release/ruvname ruvname.toml README.md LICENSE adblock.txt dist/
+          cp target/release/ruvname ruvname.toml README.md LICENSE dist/
           cd dist && zip -r ruvname-linux-amd64-v${{ needs.get_version.outputs.version }}-gui.zip *
-
-      - name: Upload GUI asset
+      - name: Package NoGUI ZIP
+        run: |
+          mkdir -p dist
+          cp target/release/ruvname ruvname.toml README.md LICENSE dist/
+          cd dist && zip -r ruvname-linux-amd64-v${{ needs.get_version.outputs.version }}-nogui.zip *
+      - name: Upload GUI ZIP
         uses: actions/upload-release-asset@v1
         with:
           upload_url: ${{ needs.create_release.outputs.upload_url }}
           asset_path: dist/ruvname-linux-amd64-v${{ needs.get_version.outputs.version }}-gui.zip
           asset_name: ruvname-linux-amd64-v${{ needs.get_version.outputs.version }}-gui.zip
           asset_content_type: application/zip
-
-  build_linux_nogui:
-    name: Build Linux NoGUI Binary (x86_64)
-    needs: [create_release, get_version]
-    runs-on: ubuntu-22.04
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Build release (no GUI)
-        run: cargo build --release --no-default-features
-
-      - name: Package NoGUI
-        run: |
-          mkdir -p dist
-          cp target/release/ruvname ruvname.toml README.md LICENSE adblock.txt dist/
-          cd dist && zip -r ruvname-linux-amd64-v${{ needs.get_version.outputs.version }}-nogui.zip *
-
-      - name: Upload NoGUI asset
+      - name: Upload NoGUI ZIP
         uses: actions/upload-release-asset@v1
         with:
           upload_url: ${{ needs.create_release.outputs.upload_url }}
@@ -106,96 +121,110 @@ jobs:
           asset_name: ruvname-linux-amd64-v${{ needs.get_version.outputs.version }}-nogui.zip
           asset_content_type: application/zip
 
-  build_windows_nogui:
-    name: Build Windows NoGUI Binary
-    needs: [create_release, get_version]
-    runs-on: windows-latest
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Build release (no GUI)
-        run: cargo build --release --no-default-features
-
-      - name: Package NoGUI
-        run: |
-          mkdir dist
-          cp target/release/ruvname.exe ruvname.toml README.md LICENSE adblock.txt dist/
-          Compress-Archive -Path dist/* -DestinationPath dist/ruvname-windows-amd64-v${{ needs.get_version.outputs.version }}-nogui.zip
-
-      - name: Upload Windows NoGUI
-        uses: actions/upload-release-asset@v1
-        with:
-          upload_url: ${{ needs.create_release.outputs.upload_url }}
-          asset_path: dist/ruvname-windows-amd64-v${{ needs.get_version.outputs.version }}-nogui.zip
-          asset_name: ruvname-windows-amd64-v${{ needs.get_version.outputs.version }}-nogui.zip
-          asset_content_type: application/zip
-
-  build_deb:
-    name: Build DEB Package (x86_64)
-    needs: [create_release, get_version]
+  # === Сборка .ipk для OpenWrt ===
+  build_ipk:
+    name: Build .ipk for ${{ matrix.arch }}
+    needs: create_release
     runs-on: ubuntu-22.04
+    strategy:
+      matrix:
+        include:
+          - arch: mipsel
+            target: mipsel-unknown-linux-musl
+            sdk_url: https://downloads.openwrt.org/releases/24.10.0/targets/generic/mipsel_24kc/openwrt-sdk-24.10.0-glibc-mipsel_24kc.Linux-x86_64.tar.xz
+            sdk_dir: openwrt-sdk-24.10.0-glibc-mipsel_24kc.Linux-x86_64
+            package_path: bin/packages/mipsel_generic/base/ruvname_*.ipk
+            asset_name: ruvname-openwrt-mipsel-v${{ needs.get_version.outputs.version }}.ipk
+          - arch: mips
+            target: mips-unknown-linux-musl
+            sdk_url: https://downloads.openwrt.org/releases/24.10.0/targets/generic/mips_24kc/openwrt-sdk-24.10.0-glibc-mips_24kc.Linux-x86_64.tar.xz
+            sdk_dir: openwrt-sdk-24.10.0-glibc-mips_24kc.Linux-x86_64
+            package_path: bin/packages/mips_24kc/base/ruvname_*.ipk
+            asset_name: ruvname-openwrt-mips-v${{ needs.get_version.outputs.version }}.ipk
+          - arch: armhf
+            target: armv7-unknown-linux-musleabihf
+            sdk_url: https://downloads.openwrt.org/releases/24.10.0/targets/bcm27xx/cortexa7/openwrt-sdk-24.10.0-bcm27xx_cortexa7_glibc.Linux-x86_64.tar.xz
+            sdk_dir: openwrt-sdk-24.10.0-bcm27xx_cortexa7_glibc.Linux-x86_64
+            package_path: bin/packages/arm_cortex-a7/base/ruvname_*.ipk
+            asset_name: ruvname-openwrt-armhf-v${{ needs.get_version.outputs.version }}.ipk
+          - arch: armlf
+            target: arm-unknown-linux-musleabi
+            sdk_url: https://downloads.openwrt.org/releases/24.10.0/targets/bcm27xx/bcm2708/openwrt-sdk-24.10.0-bcm27xx_bcm2708_glibc.Linux-x86_64.tar.xz
+            sdk_dir: openwrt-sdk-24.10.0-bcm27xx_bcm2708_glibc.Linux-x86_64
+            package_path: bin/packages/arm_arm926ej-s/base/ruvname_*.ipk
+            asset_name: ruvname-openwrt-armlf-v${{ needs.get_version.outputs.version }}.ipk
+          - arch: arm64
+            target: aarch64-unknown-linux-musl
+            sdk_url: https://downloads.openwrt.org/releases/24.10.0/targets/ipq60xx/aarch64_cortex-a53/openwrt-sdk-24.10.0-ipq60xx_glibc.Linux-x86_64.tar.xz
+            sdk_dir: openwrt-sdk-24.10.0-ipq60xx_glibc.Linux-x86_64
+            package_path: bin/packages/aarch64_cortex-a53/base/ruvname_*.ipk
+            asset_name: ruvname-openwrt-arm64-v${{ needs.get_version.outputs.version }}.ipk
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
+      - uses: actions/checkout@v4
       - name: Install cross
         run: cargo install cross
-
-      - name: Build with musl
-        run: cross build --target x86_64-unknown-linux-musl --release
-
-      - name: Build DEB package
+      - name: Build for ${{ matrix.arch }}
+        run: cross build --target ${{ matrix.target }} --release
+      - name: Setup OpenWrt SDK
         run: |
-          PKGARCH=amd64 contrib/deb/generate.sh
-
-      - name: Upload DEB
-        uses: actions/upload-release-asset@v1
-        with:
-          upload_url: ${{ needs.create_release.outputs.upload_url }}
-          asset_path: ruvname-amd64-v${{ needs.get_version.outputs.version }}.deb
-          asset_name: ruvname-linux-amd64-v${{ needs.get_version.outputs.version }}.deb
-          asset_content_type: application/vnd.debian.binary-package
-
-  build_ipk_arm64:
-    name: Build OpenWrt .ipk for ARM64 (aarch64)
-    needs: [create_release, get_version]
-    runs-on: ubuntu-22.04
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Install cross
-        run: cargo install cross
-
-      - name: Build for aarch64
-        run: cross build --target aarch64-unknown-linux-musl --release
-
-      - name: Setup OpenWrt SDK for aarch64 (ipq60xx)
-        run: |
-          wget https://downloads.openwrt.org/releases/24.10.0/targets/ipq60xx/aarch64_cortex-a53/openwrt-sdk-24.10.0-ipq60xx_glibc.Linux-x86_64.tar.xz
+          wget ${{ matrix.sdk_url }}
           tar -xf openwrt-sdk-*.tar.xz
-          mv openwrt-sdk-* openwrt-sdk
-
-      - name: Copy package files
+          mv ${{ matrix.sdk_dir }} openwrt-sdk
+      - name: Copy package
         run: |
           mkdir -p openwrt-sdk/package/ruvname/files/etc/init.d
           mkdir -p openwrt-sdk/package/ruvname/files/etc/config
           cp contrib/openwrt/package/ruvname/Makefile openwrt-sdk/package/ruvname/
           cp contrib/openwrt/files/etc/init.d/ruvname openwrt-sdk/package/ruvname/files/etc/init.d/
           cp contrib/openwrt/files/etc/config/ruvname openwrt-sdk/package/ruvname/files/etc/config/
-          cp target/aarch64-unknown-linux-musl/release/ruvname openwrt-sdk/package/ruvname/
-
+          cp target/${{ matrix.target }}/release/ruvname openwrt-sdk/package/ruvname/
       - name: Build .ipk
         working-directory: openwrt-sdk
         run: |
           make defconfig
           make package/ruvname/compile V=s
-
       - name: Upload .ipk
         uses: actions/upload-release-asset@v1
         with:
           upload_url: ${{ needs.create_release.outputs.upload_url }}
-          asset_path: openwrt-sdk/bin/packages/aarch64_cortex-a53/base/ruvname_*.ipk
-          asset_name: ruvname-openwrt-arm64-v${{ needs.get_version.outputs.version }}.ipk
+          asset_path: openwrt-sdk/${{ matrix.package_path }}
+          asset_name: ${{ matrix.asset_name }}
           asset_content_type: application/octet-stream
+
+  # === Сборка Windows (x64 и x86) ===
+  build_windows:
+    name: Build Windows ${{ matrix.arch }} (${{ matrix.type }})
+    needs: create_release
+    runs-on: windows-latest
+    strategy:
+      matrix:
+        arch: [x64, x86]
+        type: [gui, nogui]
+        include:
+          - arch: x64
+            target: x86_64-pc-windows-msvc
+            out_dir: x64
+          - arch: x86
+            target: i686-pc-windows-msvc
+            out_dir: x86
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build ${{ matrix.type }}
+        run: |
+          if ("${{ matrix.type }}" -eq "gui") {
+            cargo build --release --target ${{ matrix.target }}
+          } else {
+            cargo build --release --no-default-features --target ${{ matrix.target }}
+          }
+      - name: Package ZIP
+        run: |
+          mkdir dist/${{ matrix.out_dir }}
+          cp target/${{ matrix.target }}/release/ruvname.exe ruvname.toml README.md LICENSE dist/${{ matrix.out_dir }}/
+          Compress-Archive -Path dist/${{ matrix.out_dir }}/* -DestinationPath dist/ruvname-windows-${{ matrix.arch }}-v${{ needs.get_version.outputs.version }}-${{ matrix.type }}.zip
+      - name: Upload ZIP
+        uses: actions/upload-release-asset@v1
+        with:
+          upload_url: ${{ needs.create_release.outputs.upload_url }}
+          asset_path: dist/ruvname-windows-${{ matrix.arch }}-v${{ needs.get_version.outputs.version }}-${{ matrix.type }}.zip
+          asset_name: ruvname-windows-${{ matrix.arch }}-v${{ needs.get_version.outputs.version }}-${{ matrix.type }}.zip
+          asset_content_type: application/zip
