@@ -1,5 +1,5 @@
 # .github/workflows/release.yml
-name: Full Release: Linux, Windows, OpenWrt
+name: Create Release multi platforms
 
 on:
   push:
