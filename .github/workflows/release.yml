@@ -52,7 +52,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
   build_linux_gui:
-    name: Build Linux GUI Binary
+    name: Build Linux GUI Binary (x86_64)
     needs: [create_release, get_version]
     runs-on: ubuntu-22.04
     steps:
@@ -74,7 +74,7 @@ jobs:
           cd dist && zip -r ruvname-linux-amd64-v${{ needs.get_version.outputs.version }}-gui.zip *
 
       - name: Upload GUI asset
-        uses: actions/upload-release-asset@v1
+        uses: actions/upload-release-asset@v4
         with:
           upload_url: ${{ needs.create_release.outputs.upload_url }}
           asset_path: dist/ruvname-linux-amd64-v${{ needs.get_version.outputs.version }}-gui.zip
@@ -82,7 +82,7 @@ jobs:
           asset_content_type: application/zip
 
   build_linux_nogui:
-    name: Build Linux NoGUI Binary
+    name: Build Linux NoGUI Binary (x86_64)
     needs: [create_release, get_version]
     runs-on: ubuntu-22.04
     steps:
@@ -99,7 +99,7 @@ jobs:
           cd dist && zip -r ruvname-linux-amd64-v${{ needs.get_version.outputs.version }}-nogui.zip *
 
       - name: Upload NoGUI asset
-        uses: actions/upload-release-asset@v1
+        uses: actions/upload-release-asset@v4
         with:
           upload_url: ${{ needs.create_release.outputs.upload_url }}
           asset_path: dist/ruvname-linux-amd64-v${{ needs.get_version.outputs.version }}-nogui.zip
@@ -124,7 +124,7 @@ jobs:
           Compress-Archive -Path dist/* -DestinationPath dist/ruvname-windows-amd64-v${{ needs.get_version.outputs.version }}-nogui.zip
 
       - name: Upload Windows NoGUI
-        uses: actions/upload-release-asset@v1
+        uses: actions/upload-release-asset@v4
         with:
           upload_url: ${{ needs.create_release.outputs.upload_url }}
           asset_path: dist/ruvname-windows-amd64-v${{ needs.get_version.outputs.version }}-nogui.zip
@@ -132,7 +132,7 @@ jobs:
           asset_content_type: application/zip
 
   build_deb:
-    name: Build DEB Packages
+    name: Build DEB Package (x86_64)
     needs: [create_release, get_version]
     runs-on: ubuntu-22.04
     steps:
@@ -142,7 +142,7 @@ jobs:
       - name: Install cross
         run: cargo install cross
 
-      - name: Build with cross (x86_64-unknown-linux-musl)
+      - name: Build with musl
         run: cross build --target x86_64-unknown-linux-musl --release
 
       - name: Build DEB package
@@ -150,15 +150,15 @@ jobs:
           PKGARCH=amd64 contrib/deb/generate.sh
 
       - name: Upload DEB
-        uses: actions/upload-release-asset@v1
+        uses: actions/upload-release-asset@v4
         with:
           upload_url: ${{ needs.create_release.outputs.upload_url }}
           asset_path: ruvname-amd64-v${{ needs.get_version.outputs.version }}.deb
           asset_name: ruvname-linux-amd64-v${{ needs.get_version.outputs.version }}.deb
           asset_content_type: application/vnd.debian.binary-package
 
-  build_ipk:
-    name: Build OpenWrt .ipk
+  build_ipk_arm64:
+    name: Build OpenWrt .ipk for ARM64 (aarch64)
     needs: [create_release, get_version]
     runs-on: ubuntu-22.04
     steps:
@@ -168,12 +168,12 @@ jobs:
       - name: Install cross
         run: cargo install cross
 
-      - name: Build for mipsel
-        run: cross build --target mipsel-unknown-linux-musl --release
+      - name: Build for aarch64
+        run: cross build --target aarch64-unknown-linux-musl --release
 
-      - name: Setup OpenWrt SDK
+      - name: Setup OpenWrt SDK for aarch64 (ipq60xx)
         run: |
-          wget https://downloads.openwrt.org/releases/24.10.0/targets/generic/mipsel_24kc/openwrt-sdk-24.10.0-glibc-mipsel_24kc.Linux-x86_64.tar.xz
+          wget https://downloads.openwrt.org/releases/24.10.0/targets/ipq60xx/aarch64_cortex-a53/openwrt-sdk-24.10.0-ipq60xx_glibc.Linux-x86_64.tar.xz
           tar -xf openwrt-sdk-*.tar.xz
           mv openwrt-sdk-* openwrt-sdk
 
@@ -184,7 +184,7 @@ jobs:
           cp contrib/openwrt/package/ruvname/Makefile openwrt-sdk/package/ruvname/
           cp contrib/openwrt/package/ruvname/files/etc/init.d/ruvname openwrt-sdk/package/ruvname/files/etc/init.d/
           cp contrib/openwrt/package/ruvname/files/etc/config/ruvname openwrt-sdk/package/ruvname/files/etc/config/
-          cp target/mipsel-unknown-linux-musl/release/ruvname openwrt-sdk/package/ruvname/
+          cp target/aarch64-unknown-linux-musl/release/ruvname openwrt-sdk/package/ruvname/
 
       - name: Build .ipk
         working-directory: openwrt-sdk
@@ -193,9 +193,9 @@ jobs:
           make package/ruvname/compile V=s
 
       - name: Upload .ipk
-        uses: actions/upload-release-asset@v1
+        uses: actions/upload-release-asset@v4
         with:
           upload_url: ${{ needs.create_release.outputs.upload_url }}
-          asset_path: openwrt-sdk/bin/packages/mipsel_generic/base/ruvname_*.ipk
-          asset_name: ruvname-openwrt-mipsel-v${{ needs.get_version.outputs.version }}.ipk
+          asset_path: openwrt-sdk/bin/packages/aarch64_cortex-a53/base/ruvname_*.ipk
+          asset_name: ruvname-openwrt-arm64-v${{ needs.get_version.outputs.version }}.ipk
           asset_content_type: application/octet-stream
