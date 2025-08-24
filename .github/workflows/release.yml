@@ -1,5 +1,5 @@
 # .github/workflows/release.yml
-name: 🚀 Full Release: Linux, Windows, OpenWrt
+name: Full Release: Linux, Windows, OpenWrt
 
 on:
   push:
