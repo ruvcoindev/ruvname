@@ -1,4 +1,4 @@
-name: Release & Publish
+name: Parallel Release & Publish
 
 on:
   push:
@@ -24,7 +24,7 @@ jobs:
         run: echo "VERSION=${GITHUB_REF#refs/tags/v}" >> $GITHUB_ENV
 
   create_release:
-    name: Create Release
+    name: Create Parallel Release
     needs: get_version
     runs-on: ubuntu-22.04
     outputs:
@@ -33,7 +33,7 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Create Release
+      - name: Create Parallel Release
         id: create_release
         uses: softprops/action-gh-release@v2
         with:
@@ -59,9 +59,16 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Fix APT mirrors and install deps
+      - name: Fix APT sources and install deps
         run: |
-          sudo rm -f /etc/apt/apt-mirrors.txt || true
+          # Полностью заменяем sources.list на чистый
+          sudo rm -rf /etc/apt/sources.list.d/* /etc/apt/sources.list
+          cat << 'EOF' | sudo tee /etc/apt/sources.list
+          deb http://archive.ubuntu.com/ubuntu jammy main restricted universe multiverse
+          deb http://archive.ubuntu.com/ubuntu jammy-updates main restricted universe multiverse
+          deb http://archive.ubuntu.com/ubuntu jammy-backports main restricted universe multiverse
+          deb http://security.ubuntu.com/ubuntu jammy-security main restricted universe multiverse
+          EOF
           sudo apt update
           sudo apt install -y libwebkit2gtk-4.0-dev upx
 
@@ -126,11 +133,8 @@ jobs:
 
       - name: Optimize with UPX
         run: |
-          if (Test-Path "C:\Program Files\upx\upx.exe") {
-            & "C:\Program Files\upx\upx.exe" --best target/release/ruvname.exe
-          } else {
-            Write-Host "UPX not found, skipping..."
-          }
+          # GitHub-hosted runners have UPX in PATH
+          upx.exe --best target/release/ruvname.exe || echo "UPX failed, using raw binary"
 
       - name: Package NoGUI
         run: |
@@ -154,9 +158,15 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Install cross and upx
+      - name: Fix APT sources and install deps
         run: |
-          sudo rm -f /etc/apt/apt-mirrors.txt || true
+          sudo rm -rf /etc/apt/sources.list.d/* /etc/apt/sources.list
+          cat << 'EOF' | sudo tee /etc/apt/sources.list
+          deb http://archive.ubuntu.com/ubuntu jammy main restricted universe multiverse
+          deb http://archive.ubuntu.com/ubuntu jammy-updates main restricted universe multiverse
+          deb http://archive.ubuntu.com/ubuntu jammy-backports main restricted universe multiverse
+          deb http://security.ubuntu.com/ubuntu jammy-security main restricted universe multiverse
+          EOF
           sudo apt update
           sudo apt install -y upx
           cargo install cross --locked
