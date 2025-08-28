@@ -90,10 +90,14 @@ jobs:
 
       - name: Package GUI
         run: |
-          VERSION=${{ needs.get_version.outputs.version }}
+          VERSION="${{ needs.get_version.outputs.version }}"
+          if [[ "$VERSION" == refs/* ]]; then
+            VERSION="dev-$(git rev-parse --short HEAD)"
+          fi
+          SAFE_VERSION=$(echo "$VERSION" | sed 's|[^a-zA-Z0-9._-]|_|g')
           mkdir -p dist
           cp target/release/ruvname ruvname.toml README.md LICENSE adblock.txt dist/
-          cd dist && zip -r ruvname-linux-amd64-v${VERSION}-gui.zip *
+          cd dist && zip -r "ruvname-linux-amd64-v$SAFE_VERSION-gui.zip" *
 
       - name: Upload GUI asset
         uses: actions/upload-release-asset@v1
@@ -119,10 +123,14 @@ jobs:
 
       - name: Package NoGUI
         run: |
-          VERSION=${{ needs.get_version.outputs.version }}
+          VERSION="${{ needs.get_version.outputs.version }}"
+          if [[ "$VERSION" == refs/* ]]; then
+            VERSION="dev-$(git rev-parse --short HEAD)"
+          fi
+          SAFE_VERSION=$(echo "$VERSION" | sed 's|[^a-zA-Z0-9._-]|_|g')
           mkdir -p dist
           cp target/release/ruvname ruvname.toml README.md LICENSE adblock.txt dist/
-          cd dist && zip -r ruvname-linux-amd64-v${VERSION}-nogui.zip *
+          cd dist && zip -r "ruvname-linux-amd64-v$SAFE_VERSION-nogui.zip" *
 
       - name: Upload NoGUI asset
         uses: actions/upload-release-asset@v1
@@ -150,9 +158,13 @@ jobs:
       - name: Package NoGUI
         run: |
           $version = "${{ needs.get_version.outputs.version }}"
+          if ($version -like "refs/*") {
+            $version = "dev-" + (& git rev-parse --short HEAD)
+          }
+          $safeVersion = $version -replace '[^a-zA-Z0-9._-]', '_'
           mkdir dist
           Copy-Item target/release/ruvname.exe, ruvname.toml, README.md, LICENSE, adblock.txt -Destination dist/
-          Compress-Archive -Path dist/* -DestinationPath "dist/ruvname-windows-amd64-v$version-nogui.zip"
+          Compress-Archive -Path dist/* -DestinationPath "dist/ruvname-windows-amd64-v$safeVersion-nogui.zip"
 
       - name: Upload Windows NoGUI
         uses: actions/upload-release-asset@v1
