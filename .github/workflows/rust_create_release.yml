@@ -1,3 +1,4 @@
+# .github/workflows/release.yml
 name: Release & Publish
 
 on:
@@ -58,18 +59,13 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Fix APT mirrors and install deps
+      - name: Install dependencies
         run: |
-          sudo rm -f /etc/apt/apt-mirrors.txt || true
           sudo apt update
           sudo apt install -y libwebkit2gtk-4.0-dev upx
 
       - name: Build release (GUI)
         run: cargo build --release
-
-      - name: Optimize binary with UPX
-        run: |
-          upx --best target/release/ruvname || echo "UPX not available, skipping..."
 
       - name: Package GUI
         run: |
@@ -78,7 +74,7 @@ jobs:
           cd dist && zip -r ruvname-linux-amd64-v${{ needs.get_version.outputs.version }}-gui.zip *
 
       - name: Upload GUI asset
-        uses: actions/upload-release-asset@v1
+        uses: actions/upload-release-asset@v4
         with:
           upload_url: ${{ needs.create_release.outputs.upload_url }}
           asset_path: dist/ruvname-linux-amd64-v${{ needs.get_version.outputs.version }}-gui.zip
@@ -96,10 +92,6 @@ jobs:
       - name: Build release (NoGUI)
         run: cargo build --release --no-default-features
 
-      - name: Optimize binary with UPX
-        run: |
-          upx --best target/release/ruvname || echo "UPX not available, skipping..."
-
       - name: Package NoGUI
         run: |
           mkdir -p dist
@@ -107,7 +99,7 @@ jobs:
           cd dist && zip -r ruvname-linux-amd64-v${{ needs.get_version.outputs.version }}-nogui.zip *
 
       - name: Upload NoGUI asset
-        uses: actions/upload-release-asset@v1
+        uses: actions/upload-release-asset@v4
         with:
           upload_url: ${{ needs.create_release.outputs.upload_url }}
           asset_path: dist/ruvname-linux-amd64-v${{ needs.get_version.outputs.version }}-nogui.zip
@@ -125,19 +117,14 @@ jobs:
       - name: Build release (NoGUI)
         run: cargo build --release --no-default-features
 
-      - name: Optimize binary with UPX
-        run: |
-          # UPX доступен в Windows runner'ах GitHub
-          upx.exe --best target/release/ruvname.exe || echo "UPX failed, using raw binary"
-
       - name: Package NoGUI
         run: |
           mkdir dist
-          Copy-Item target/release/ruvname.exe, ruvname.toml, README.md, LICENSE, adblock.txt -Destination dist/
+          cp target/release/ruvname.exe ruvname.toml README.md LICENSE adblock.txt dist/
           Compress-Archive -Path dist/* -DestinationPath dist/ruvname-windows-amd64-v${{ needs.get_version.outputs.version }}-nogui.zip
 
       - name: Upload Windows NoGUI
-        uses: actions/upload-release-asset@v1
+        uses: actions/upload-release-asset@v4
         with:
           upload_url: ${{ needs.create_release.outputs.upload_url }}
           asset_path: dist/ruvname-windows-amd64-v${{ needs.get_version.outputs.version }}-nogui.zip
@@ -153,14 +140,10 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Install cross
-        run: cargo install cross --locked
+        run: cargo install cross
 
       - name: Build with musl
         run: cross build --target x86_64-unknown-linux-musl --release
-
-      - name: Optimize binary with UPX
-        run: |
-          upx --best target/x86_64-unknown-linux-musl/release/ruvname || echo "UPX failed, using raw binary"
 
       - name: Generate DEB
         run: PKGARCH=amd64 contrib/deb/generate.sh
