@@ -34,25 +34,25 @@ TARGET=""
 # === Сопоставление архитектур и target ===
 case "$PKGARCH" in
     amd64)
-        TARGET=x86_64-unknown-linux-gnu
+        TARGET=x86_64-unknown-linux-musl
         ;;
     i686)
-        TARGET=i686-unknown-linux-gnu
+        TARGET=i686-unknown-linux-musl
         ;;
     armhf)
-        TARGET=armv7-unknown-linux-gnueabihf
+        TARGET=armv7-unknown-linux-musleabihf
         ;;
     armlf)
-        TARGET=arm-unknown-linux-gnueabi
+        TARGET=arm-unknown-linux-musleabi
         ;;
     arm64)
-        TARGET=aarch64-unknown-linux-gnu
+        TARGET=aarch64-unknown-linux-musl
         ;;
     mips)
-        TARGET=mips-unknown-linux-gnu
+        TARGET=mips-unknown-linux-musl
         ;;
     mipsel)
-        TARGET=mipsel-unknown-linux-gnu
+        TARGET=mipsel-unknown-linux-musl
         ;;
     *)
         echo "❌ Неверная архитектура: $PKGARCH"
@@ -76,7 +76,7 @@ else
     echo "🔧 Сборка без GUI"
 fi
 
-# === Имя пакета ===
+# === Имя пакета — без "heads/" ===
 PKGFILE="${PKGNAME}-${PKGARCH}-v${VERSION}${PKGFILE_SUFFIX}.deb"
 echo "📁 Имя пакета: $PKGFILE"
 
@@ -131,7 +131,7 @@ Depends: libc6
 Replaces: ruvname
 Conflicts: ruvname
 Maintainer: ruvcoindev <admin@ruvcha.in>
-Homepage: https://ruv.name
+Homepage: https://ruv.name  
 Description: RUVNAME - RUVchain NAMEspace
  Сеть ruvchain, майнинг доменов, DEX, децентрализованный DNS
 EOF

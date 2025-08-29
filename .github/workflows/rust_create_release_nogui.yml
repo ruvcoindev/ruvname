@@ -1,13 +1,12 @@
 on:
   push:
     tags: v[0-9].[0-9]+.[0-9]+
-  workflow_dispatch:
 
 env:
   GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
   CARGO_TERM_COLOR: always
 
-name: Create release
+name: Releases
 
 jobs:
   get_version:
@@ -21,7 +20,7 @@ jobs:
       - name: Getting version
         run: echo "VERSION=${GITHUB_REF#refs/*/}" >> $GITHUB_ENV
 
-  create_release:
+  make_release:
     name: Create Release
     runs-on: ubuntu-22.04
     needs: get_version
@@ -49,40 +48,9 @@ jobs:
           draft: true
           prerelease: false
 
-  linux-nogui:
+  build-and-upload:
     name: Create and upload builds
-    needs: [ create_release, get_version ]
-    runs-on: ubuntu-22.04
-    strategy:
-      matrix:
-        arch: [ amd64, i686, armhf, armlf, arm64 ]
-    defaults:
-      run:
-        shell: bash
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v2
-
-      - name: install dependencies
-        run: |
-          sudo apt update && sudo apt upgrade && sudo apt install libwebkit2gtk-4.0-dev upx
-          cargo install cross
-
-      - name: Build and package deb packages
-        run: PKGARCH=${{ matrix.arch }} contrib/deb/generate.sh
-
-      - name: Upload bins & debs
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          tag_name="${{ needs.get_version.outputs.project_version }}"
-          ls -lh ./bin/
-          gh release upload "$tag_name" ./bin/ruvname-* --clobber
-          gh release upload "$tag_name" *.deb --clobber
-
-  build-and-upload-gui-zips:
-    name: Create and upload builds
-    needs: [ create_release, get_version ]
+    needs: [ make_release, get_version ]
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
@@ -94,38 +62,63 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v2
-
       - name: install dependencies
         if: contains(matrix.os, 'ubuntu')
-        run: sudo apt update && sudo apt install --no-install-recommends libwebkit2gtk-4.0-dev upx
-
+        run: |
+          sudo apt update && sudo apt install libwebkit2gtk-4.0-dev upx
+          cargo install cross
       - name: Build release binaries
-        run: cargo build --release
-
+        run: |
+          cargo build --release
+          cargo build --release --no-default-features --target-dir nogui
       - name: Build Windows release binaries with Edge web-engine
         if: contains(matrix.os, 'windows')
         run: cargo build --release --features "edge" --target-dir edge
+      - name: Build and package deb packages
+        if: contains(matrix.os, 'ubuntu')
+        run: |
+          PKGARCH=amd64 contrib/deb/generate.sh
+          PKGARCH=i686 contrib/deb/generate.sh
+          PKGARCH=mips contrib/deb/generate.sh
+          PKGARCH=mipsel contrib/deb/generate.sh
+          PKGARCH=armhf contrib/deb/generate.sh
+          PKGARCH=armlf contrib/deb/generate.sh
+          PKGARCH=arm64 contrib/deb/generate.sh
 
-      - name: windows
-        if: contains(matrix.os, 'windows')
+      - name: Upload bins & debs
+        if: contains(matrix.os, 'ubuntu')
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          tag_name="${{ needs.get_version.outputs.project_version }}"
+          hub release edit $(find ./bin -type f -name "ruvname-*" -printf "-a %p ") -m "" "$tag_name"
+          hub release edit $(find . -type f -name "*.deb" -printf "-a %p ") -m "" "$tag_name"
+
+      - name: win_arch
         run: |
           echo "BIN_ARCH=windows-amd64" >> $GITHUB_ENV
+          echo "BIN_ARCH_NOGUI=windows-amd64-nogui" >> $GITHUB_ENV
           echo "BIN_ARCH_EDGE=windows-amd64-edge" >> $GITHUB_ENV
-
-      - name: linux
+        if: contains(matrix.os, 'windows')
+      - name: lin_arch
+        run: |
+          echo "BIN_ARCH=linux-amd64" >> $GITHUB_ENV
+          echo "BIN_ARCH_NOGUI=linux-amd64-nogui" >> $GITHUB_ENV
         if: contains(matrix.os, 'ubuntu')
-        run: echo "BIN_ARCH=linux-amd64" >> $GITHUB_ENV
-
-
+      
       - name: Fill variables
         run: |
           echo "BIN_PATH=./target/release/ruvname" >> $GITHUB_ENV
           echo "ZIP_NAME=ruvname-${{env.BIN_ARCH}}-${{ needs.get_version.outputs.project_version }}.zip" >> $GITHUB_ENV
+          echo "BIN_PATH_NOGUI=./nogui/release/ruvname" >> $GITHUB_ENV
+          echo "ZIP_NAME_NOGUI=ruvname-${{env.BIN_ARCH}}-${{ needs.get_version.outputs.project_version }}-nogui.zip" >> $GITHUB_ENV
       - name: Windows variables
         if: contains(matrix.os, 'windows')
         run: |
           echo "BIN_PATH=target/release/ruvname.exe" >> $GITHUB_ENV
           echo "ZIP_NAME=ruvname-${{env.BIN_ARCH}}-${{ needs.get_version.outputs.project_version }}.zip" >> $GITHUB_ENV
+          echo "BIN_PATH_NOGUI=nogui/release/ruvname.exe" >> $GITHUB_ENV
+          echo "ZIP_NAME_NOGUI=ruvname-${{env.BIN_ARCH}}-${{ needs.get_version.outputs.project_version }}-nogui.zip" >> $GITHUB_ENV
           echo "BIN_PATH_EDGE=edge/release/ruvname.exe" >> $GITHUB_ENV
           echo "ZIP_NAME_EDGE=ruvname-${{env.BIN_ARCH}}-${{ needs.get_version.outputs.project_version }}-edge.zip" >> $GITHUB_ENV
 
@@ -134,7 +127,11 @@ jobs:
         with:
           files: ${{ env.BIN_PATH }} ruvname.toml README.md LICENSE adblock.txt
           dest: ${{ env.ZIP_NAME }}
-
+      - name: Packaging no GUI
+        uses: papeloto/action-zip@v1
+        with:
+          files: ${{ env.BIN_PATH_NOGUI }} ruvname.toml README.md LICENSE adblock.txt
+          dest: ${{ env.ZIP_NAME_NOGUI }}
       - name: Packaging Edge binary
         if: contains(matrix.os, 'windows')
         uses: papeloto/action-zip@v1
@@ -148,9 +145,20 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          upload_url: ${{ needs.create_release.outputs.upload_url }}
+          upload_url: ${{ needs.make_release.outputs.upload_url }}
           asset_path: ${{ env.ZIP_NAME }}
           asset_name: ${{ env.ZIP_NAME }}
+          asset_content_type: application/zip
+
+      - name: Upload NoGUI zip
+        id: upload-nogui-zip
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ needs.make_release.outputs.upload_url }}
+          asset_path: ${{ env.ZIP_NAME_NOGUI }}
+          asset_name: ${{ env.ZIP_NAME_NOGUI }}
           asset_content_type: application/zip
 
       - name: Upload Edge binary
@@ -160,7 +168,7 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          upload_url: ${{ needs.create_release.outputs.upload_url }}
+          upload_url: ${{ needs.make_release.outputs.upload_url }}
           asset_path: ${{ env.ZIP_NAME_EDGE }}
           asset_name: ${{ env.ZIP_NAME_EDGE }}
           asset_content_type: application/zip
