@@ -111,13 +111,19 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Install Linux deps
-        if: matrix.os == 'ubuntu-22.04'
-        run: |
-          sudo rm -rf /etc/apt/sources.list.d/* /etc/apt/sources.list
-          echo "deb http://archive.ubuntu.com/ubuntu jammy main" | sudo tee /etc/apt/sources.list
-          sudo apt update
-          sudo apt install -y --no-install-recommends libwebkit2gtk-4.0-dev upx
+      - name: Fix APT sources and install deps
+  run: |
+    set -eux
+    # Полная замена sources.list
+    sudo rm -rf /etc/apt/sources.list.d/* /etc/apt/sources.list
+    sudo tee /etc/apt/sources.list << 'EOF'
+    deb http://archive.ubuntu.com/ubuntu jammy main restricted universe multiverse
+    deb http://archive.ubuntu.com/ubuntu jammy-updates main restricted universe multiverse
+    deb http://archive.ubuntu.com/ubuntu jammy-backports main restricted universe multiverse
+    deb http://security.ubuntu.com/ubuntu jammy-security main restricted universe multiverse
+    EOF
+    sudo apt update
+    sudo apt install -y --no-install-recommends libwebkit2gtk-4.0-dev upx
 
       - name: Build release (GUI)
         run: cargo build --release
