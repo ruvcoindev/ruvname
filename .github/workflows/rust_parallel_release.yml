@@ -46,7 +46,7 @@ jobs:
             * Various fixes and stability improvements.
             ## Documentation & others
             * Updated documentation.
-          draft: true
+          draft: false
           prerelease: false
 
   linux-nogui:
