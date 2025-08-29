@@ -1,6 +1,8 @@
 on:
   push:
-    tags: v[0-9].[0-9]+.[0-9]+
+    tags:
+      - 'v[0-9]+.[0-9]+.[0-9]+'  # v1.2.3
+  workflow_dispatch:
 
 env:
   GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -10,34 +12,36 @@ name: Releases
 
 jobs:
   get_version:
-    name: Get version from Git tag
+    name: Get version from tag
     runs-on: ubuntu-22.04
     outputs:
-      project_version: ${{ env.VERSION }}
+      version: ${{ env.VERSION }}
     steps:
       - name: Checkout code
-        uses: actions/checkout@v2
-      - name: Getting version
-        run: echo "VERSION=${GITHUB_REF#refs/*/}" >> $GITHUB_ENV
+        uses: actions/checkout@v4
 
-  make_release:
-    name: Create Release
+      - name: Extract version
+        run: |
+          VERSION="${GITHUB_REF#refs/tags/v}"
+          echo "VERSION=$VERSION" >> $GITHUB_ENV
+          echo "📦 Version: $VERSION"
+
+  create_release:
+    name: Create GitHub Release
     runs-on: ubuntu-22.04
     needs: get_version
-    outputs: 
+    outputs:
       upload_url: ${{ steps.create_release.outputs.upload_url }}
     steps:
       - name: Checkout code
-        uses: actions/checkout@v2
+        uses: actions/checkout@v4
+
       - name: Create Release
         id: create_release
-        uses: actions/create-release@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          VERSION: ${{ needs.get_version.outputs.project_version }}
+        uses: softprops/action-gh-release@v2
         with:
-          tag_name: ${{ env.VERSION }}
-          release_name: ${{ env.VERSION }}
+          tag_name: v${{ needs.get_version.outputs.version }}
+          name: v${{ needs.get_version.outputs.version }}
           body: |
             ## New
             * Added new features.
@@ -47,128 +51,175 @@ jobs:
             * Updated documentation.
           draft: false
           prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-  build-and-upload:
-    name: Create and upload builds
-    needs: [ make_release, get_version ]
-    runs-on: ${{ matrix.os }}
+  build_deb_packages:
+    name: Build .deb packages (amd64, i686, armhf, armlf, arm64)
+    runs-on: ubuntu-22.04
+    needs: [create_release, get_version]
     strategy:
       matrix:
-        os: [ windows-latest, ubuntu-22.04 ]
-  
-    defaults:
-      run:
-        shell: bash
+        arch: [amd64, i686, armhf, armlf, arm64]
+        target: [
+          x86_64-unknown-linux-musl,
+          i686-unknown-linux-musl,
+          armv7-unknown-linux-musleabihf,
+          arm-unknown-linux-musleabi,
+          aarch64-unknown-linux-musl
+        ]
     steps:
       - name: Checkout code
-        uses: actions/checkout@v2
-      - name: install dependencies
-        if: contains(matrix.os, 'ubuntu')
-        run: |
-          sudo apt update && sudo apt install libwebkit2gtk-4.0-dev upx
-          cargo install cross
-      - name: Build release binaries
-        run: |
-          cargo build --release
-          cargo build --release --no-default-features --target-dir nogui
-      - name: Build Windows release binaries with Edge web-engine
-        if: contains(matrix.os, 'windows')
-        run: cargo build --release --features "edge" --target-dir edge
-      - name: Build and package deb packages
-        if: contains(matrix.os, 'ubuntu')
-        run: |
-          PKGARCH=amd64 contrib/deb/generate.sh
-          PKGARCH=i686 contrib/deb/generate.sh
-          PKGARCH=mips contrib/deb/generate.sh
-          PKGARCH=mipsel contrib/deb/generate.sh
-          PKGARCH=armhf contrib/deb/generate.sh
-          PKGARCH=armlf contrib/deb/generate.sh
-          PKGARCH=arm64 contrib/deb/generate.sh
+        uses: actions/checkout@v4
 
-      - name: Upload bins & debs
-        if: contains(matrix.os, 'ubuntu')
+      - name: Fix APT sources
+        run: |
+          set -eux
+          sudo rm -rf /etc/apt/sources.list.d/* /etc/apt/sources.list
+          sudo tee /etc/apt/sources.list << 'EOF'
+          deb http://archive.ubuntu.com/ubuntu jammy main restricted universe multiverse
+          deb http://archive.ubuntu.com/ubuntu jammy-updates main restricted universe multiverse
+          deb http://security.ubuntu.com/ubuntu jammy-security main restricted universe multiverse
+          EOF
+          sudo apt update
+
+      - name: Install deps
+        run: |
+          sudo apt install -y --no-install-recommends upx
+          cargo install cross --locked
+
+      - name: Build and package .deb
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PKGARCH: ${{ matrix.arch }}
+          TARGET: ${{ matrix.target }}
+          VERSION: ${{ needs.get_version.outputs.version }}
         run: |
-          tag_name="${{ needs.get_version.outputs.project_version }}"
-          hub release edit $(find ./bin -type f -name "ruvname-*" -printf "-a %p ") -m "" "$tag_name"
-          hub release edit $(find . -type f -name "*.deb" -printf "-a %p ") -m "" "$tag_name"
+          contrib/deb/generate.sh
 
-      - name: win_arch
-        run: |
-          echo "BIN_ARCH=windows-amd64" >> $GITHUB_ENV
-          echo "BIN_ARCH_NOGUI=windows-amd64-nogui" >> $GITHUB_ENV
-          echo "BIN_ARCH_EDGE=windows-amd64-edge" >> $GITHUB_ENV
-        if: contains(matrix.os, 'windows')
-      - name: lin_arch
-        run: |
-          echo "BIN_ARCH=linux-amd64" >> $GITHUB_ENV
-          echo "BIN_ARCH_NOGUI=linux-amd64-nogui" >> $GITHUB_ENV
-        if: contains(matrix.os, 'ubuntu')
-      
-      - name: Fill variables
-        run: |
-          echo "BIN_PATH=./target/release/ruvname" >> $GITHUB_ENV
-          echo "ZIP_NAME=ruvname-${{env.BIN_ARCH}}-${{ needs.get_version.outputs.project_version }}.zip" >> $GITHUB_ENV
-          echo "BIN_PATH_NOGUI=./nogui/release/ruvname" >> $GITHUB_ENV
-          echo "ZIP_NAME_NOGUI=ruvname-${{env.BIN_ARCH}}-${{ needs.get_version.outputs.project_version }}-nogui.zip" >> $GITHUB_ENV
-      - name: Windows variables
-        if: contains(matrix.os, 'windows')
-        run: |
-          echo "BIN_PATH=target/release/ruvname.exe" >> $GITHUB_ENV
-          echo "ZIP_NAME=ruvname-${{env.BIN_ARCH}}-${{ needs.get_version.outputs.project_version }}.zip" >> $GITHUB_ENV
-          echo "BIN_PATH_NOGUI=nogui/release/ruvname.exe" >> $GITHUB_ENV
-          echo "ZIP_NAME_NOGUI=ruvname-${{env.BIN_ARCH}}-${{ needs.get_version.outputs.project_version }}-nogui.zip" >> $GITHUB_ENV
-          echo "BIN_PATH_EDGE=edge/release/ruvname.exe" >> $GITHUB_ENV
-          echo "ZIP_NAME_EDGE=ruvname-${{env.BIN_ARCH}}-${{ needs.get_version.outputs.project_version }}-edge.zip" >> $GITHUB_ENV
-
-      - name: Packaging
-        uses: papeloto/action-zip@v1
-        with:
-          files: ${{ env.BIN_PATH }} ruvname.toml README.md LICENSE adblock.txt
-          dest: ${{ env.ZIP_NAME }}
-      - name: Packaging no GUI
-        uses: papeloto/action-zip@v1
-        with:
-          files: ${{ env.BIN_PATH_NOGUI }} ruvname.toml README.md LICENSE adblock.txt
-          dest: ${{ env.ZIP_NAME_NOGUI }}
-      - name: Packaging Edge binary
-        if: contains(matrix.os, 'windows')
-        uses: papeloto/action-zip@v1
-        with:
-          files: ${{ env.BIN_PATH_EDGE }} ruvname.toml README.md LICENSE adblock.txt
-          dest: ${{ env.ZIP_NAME_EDGE }}
-
-      - name: Upload zip
-        id: upload-zip
+      - name: Upload .deb
         uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          upload_url: ${{ needs.make_release.outputs.upload_url }}
-          asset_path: ${{ env.ZIP_NAME }}
-          asset_name: ${{ env.ZIP_NAME }}
+          upload_url: ${{ needs.create_release.outputs.upload_url }}
+          asset_path: ruvname-${{ matrix.arch }}-v${{ needs.get_version.outputs.version }}.deb
+          asset_name: ruvname-linux-${{ matrix.arch }}-v${{ needs.get_version.outputs.version }}.deb
+          asset_content_type: application/vnd.debian.binary-package
+
+  build_windows:
+    name: Build Windows ZIPs
+    runs-on: windows-latest
+    needs: [create_release, get_version]
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Build GUI
+        run: cargo build --release
+
+      - name: Build NoGUI
+        run: cargo build --release --no-default-features --target-dir nogui
+
+      - name: Build Edge
+        run: cargo build --release --features edge --target-dir edge
+
+      - name: Package GUI
+        run: |
+          $version = "${{ needs.get_version.outputs.version }}"
+          Compress-Archive -Path target/release/ruvname.exe, ruvname.toml, README.md, LICENSE, adblock.txt -DestinationPath "ruvname-windows-amd64-v$version-gui.zip"
+
+      - name: Package NoGUI
+        run: |
+          $version = "${{ needs.get_version.outputs.version }}"
+          Compress-Archive -Path nogui/release/ruvname.exe, ruvname.toml, README.md, LICENSE, adblock.txt -DestinationPath "ruvname-windows-amd64-v$version-nogui.zip"
+
+      - name: Package Edge
+        run: |
+          $version = "${{ needs.get_version.outputs.version }}"
+          Compress-Archive -Path edge/release/ruvname.exe, ruvname.toml, README.md, LICENSE, adblock.txt -DestinationPath "ruvname-windows-amd64-v$version-edge.zip"
+
+      - name: Upload GUI
+        uses: actions/upload-release-asset@v1
+        with:
+          upload_url: ${{ needs.create_release.outputs.upload_url }}
+          asset_path: ruvname-windows-amd64-v${{ needs.get_version.outputs.version }}-gui.zip
+          asset_name: ruvname-windows-amd64-v${{ needs.get_version.outputs.version }}-gui.zip
           asset_content_type: application/zip
 
-      - name: Upload NoGUI zip
-        id: upload-nogui-zip
+      - name: Upload NoGUI
         uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          upload_url: ${{ needs.make_release.outputs.upload_url }}
-          asset_path: ${{ env.ZIP_NAME_NOGUI }}
-          asset_name: ${{ env.ZIP_NAME_NOGUI }}
+          upload_url: ${{ needs.create_release.outputs.upload_url }}
+          asset_path: ruvname-windows-amd64-v${{ needs.get_version.outputs.version }}-nogui.zip
+          asset_name: ruvname-windows-amd64-v${{ needs.get_version.outputs.version }}-nogui.zip
           asset_content_type: application/zip
 
-      - name: Upload Edge binary
-        if: contains(matrix.os, 'windows')
-        id: upload-edge-binary
+      - name: Upload Edge
         uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          upload_url: ${{ needs.make_release.outputs.upload_url }}
-          asset_path: ${{ env.ZIP_NAME_EDGE }}
-          asset_name: ${{ env.ZIP_NAME_EDGE }}
+          upload_url: ${{ needs.create_release.outputs.upload_url }}
+          asset_path: ruvname-windows-amd64-v${{ needs.get_version.outputs.version }}-edge.zip
+          asset_name: ruvname-windows-amd64-v${{ needs.get_version.outputs.version }}-edge.zip
+          asset_content_type: application/zip
+
+  build_linux_zip:
+    name: Build Linux ZIPs
+    runs-on: ubuntu-22.04
+    needs: [create_release, get_version]
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Fix APT sources
+        run: |
+          set -eux
+          sudo rm -rf /etc/apt/sources.list.d/* /etc/apt/sources.list
+          sudo tee /etc/apt/sources.list << 'EOF'
+          deb http://archive.ubuntu.com/ubuntu jammy main restricted universe multiverse
+          deb http://archive.ubuntu.com/ubuntu jammy-updates main restricted universe multiverse
+          deb http://security.ubuntu.com/ubuntu jammy-security main restricted universe multiverse
+          EOF
+          sudo apt update
+
+      - name: Install deps
+        run: |
+          sudo apt install -y --no-install-recommends libwebkit2gtk-4.0-dev upx
+
+      - name: Build GUI
+        run: cargo build --release
+
+      - name: Build NoGUI
+        run: cargo build --release --no-default-features
+
+      - name: Optimize with UPX
+        run: |
+          upx --best target/release/ruvname || echo "UPX not available"
+          upx --best target/release/ruvname || echo "UPX not available"
+
+      - name: Package GUI
+        run: |
+          VERSION=${{ needs.get_version.outputs.version }}
+          mkdir -p dist
+          cp target/release/ruvname ruvname.toml README.md LICENSE adblock.txt dist/
+          cd dist && zip -r "ruvname-linux-amd64-v$VERSION-gui.zip" *
+
+      - name: Package NoGUI
+        run: |
+          VERSION=${{ needs.get_version.outputs.version }}
+          mkdir -p dist
+          cp target/release/ruvname ruvname.toml README.md LICENSE adblock.txt dist/
+          cd dist && zip -r "ruvname-linux-amd64-v$VERSION-nogui.zip" *
+
+      - name: Upload GUI
+        uses: actions/upload-release-asset@v1
+        with:
+          upload_url: ${{ needs.create_release.outputs.upload_url }}
+          asset_path: dist/ruvname-linux-amd64-v${{ needs.get_version.outputs.version }}-gui.zip
+          asset_name: ruvname-linux-amd64-v${{ needs.get_version.outputs.version }}-gui.zip
+          asset_content_type: application/zip
+
+      - name: Upload NoGUI
+        uses: actions/upload-release-asset@v1
+        with:
+          upload_url: ${{ needs.create_release.outputs.upload_url }}
+          asset_path: dist/ruvname-linux-amd64-v${{ needs.get_version.outputs.version }}-nogui.zip
+          asset_name: ruvname-linux-amd64-v${{ needs.get_version.outputs.version }}-nogui.zip
           asset_content_type: application/zip
