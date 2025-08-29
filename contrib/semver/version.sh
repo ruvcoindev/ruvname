@@ -1,46 +1,50 @@
 #!/bin/sh
 
-# Get the last tag
-TAG=$(git describe --abbrev=0 --tags --match="v[0-9]*\.[0-9]*\.[0-9]*" 2>/dev/null)
+# Try to get version from GITHUB_REF first (CI)
+if [ -n "${GITHUB_REF:-}" ]; then
+  case "$GITHUB_REF" in
+    refs/tags/v*)
+      TAG="${GITHUB_REF#refs/tags/v}"
+      printf '%s' "$TAG"
+      exit 0
+      ;;
+    refs/heads/*)
+      # Ветка, не тег
+      BRANCH="${GITHUB_REF#refs/heads/}"
+      ;;
+  esac
+fi
 
-# Did getting the tag succeed?
-if [ $? != 0 ] || [ -z "$TAG" ]; then
-  printf -- "unknown"
+# Fallback: использовать git (локальная разработка)
+TAG=$(git describe --abbrev=0 --tags --match="v[0-9]*.[0-9]*.[0-9]*" 2>/dev/null)
+if [ $? = 0 ] && [ -n "$TAG" ]; then
+  TAG="${TAG#v}"
+else
+  printf 'unknown'
   exit 0
 fi
 
-# Get the current branch
 BRANCH=$(git symbolic-ref -q HEAD --short 2>/dev/null)
-
-# Did getting the branch succeed?
 if [ $? != 0 ] || [ -z "$BRANCH" ]; then
   BRANCH="master"
 fi
 
-# Split out into major, minor and patch numbers
-MAJOR=$(echo $TAG | cut -c 2- | cut -d "." -f 1)
-MINOR=$(echo $TAG | cut -c 2- | cut -d "." -f 2)
-PATCH=$(echo $TAG | cut -c 2- | cut -d "." -f 3)
+# Извлекаем MAJOR, MINOR, PATCH
+MAJOR=$(echo "$TAG" | cut -d. -f1)
+MINOR=$(echo "$TAG" | cut -d. -f2)
+PATCH=$(echo "$TAG" | cut -d. -f3)
 
-# Output in the desired format
-if [ $((PATCH)) -eq 0 ]; then
-  printf '%s%d.%d' "$PREPEND" "$((MAJOR))" "$((MINOR))"
+# Форматируем
+if [ "$PATCH" -eq 0 ]; then
+  printf '%d.%d' "$MAJOR" "$MINOR"
 else
-  printf '%s%d.%d.%d' "$PREPEND" "$((MAJOR))" "$((MINOR))" "$((PATCH))"
+  printf '%d.%d.%d' "$MAJOR" "$MINOR" "$PATCH"
 fi
 
-# Add the build tag on non-master branches
-if [ "$BRANCH" != "master" ]; then
-  BUILD=$(git rev-list --count $TAG..HEAD 2>/dev/null)
-
-  # Did getting the count of commits since the tag succeed?
-  if [ $? != 0 ] || [ -z "$BUILD" ]; then
-    printf -- "-unknown"
-    exit 0
-  fi
-
-  # Is the build greater than zero?
-  if [ $((BUILD)) -gt 0 ]; then
-      printf -- "-%04d" "$((BUILD))"
+# Добавляем билд-номер только если не на теге
+if [ "$BRANCH" != "master" ] && [ "$BRANCH" != "main" ] && [ "$BRANCH" != "$TAG" ]; then
+  BUILD=$(git rev-list --count "v$TAG..HEAD" 2>/dev/null)
+  if [ $? = 0 ] && [ -n "$BUILD" ] && [ "$BUILD" -gt 0 ]; then
+    printf '-%04d' "$BUILD"
   fi
 fi
