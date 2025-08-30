@@ -1,0 +1,196 @@
+on:
+  push:
+    tags:
+      - 'v[0-9]+.[0-9]+.[0-9]+'  # v1.2.3
+  workflow_dispatch:
+
+env:
+  GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+  CARGO_TERM_COLOR: always
+
+name: Create release with GUI
+
+jobs:
+  get_version:
+    name: Get version from Git tag
+    runs-on: ubuntu-22.04
+    outputs:
+      version: ${{ env.VERSION }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Чтобы git describe работал
+
+      - name: Extract version
+        run: |
+          VERSION="${GITHUB_REF#refs/tags/v}"
+          if [[ "$VERSION" == "refs/tags/v"* ]]; then
+            echo "VERSION=unknown" >> $GITHUB_ENV
+            exit 1
+          fi
+          echo "VERSION=$VERSION" >> $GITHUB_ENV
+          echo "📦 Version: $VERSION"
+
+  create_release:
+    name: Create GitHub Release
+    runs-on: ubuntu-22.04
+    needs: get_version
+    outputs:
+      upload_url: ${{ steps.create_release.outputs.upload_url }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Create Release
+        id: create_release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v${{ needs.get_version.outputs.version }}
+          name: v${{ needs.get_version.outputs.version }}
+          body: |
+            ## New
+            * Added new features.
+            ## Bug Fixes & Improvements
+            * Various fixes and stability improvements.
+            ## Documentation & others
+            * Updated documentation.
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  build_deb_gui:
+    name: Build .deb (GUI) for ${{ matrix.arch }}
+    runs-on: ubuntu-22.04
+    needs: [create_release, get_version]
+    strategy:
+      matrix:
+        arch: [amd64, i686, armhf, armlf, arm64]
+        target: [
+          x86_64-unknown-linux-musl,
+          i686-unknown-linux-musl,
+          armv7-unknown-linux-musleabihf,
+          arm-unknown-linux-musleabi,
+          aarch64-unknown-linux-musl
+        ]
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Fix APT sources
+        run: |
+          set -eux
+          sudo rm -rf /etc/apt/sources.list.d/* /etc/apt/sources.list
+          sudo tee /etc/apt/sources.list << 'EOF'
+          deb http://archive.ubuntu.com/ubuntu jammy main restricted universe multiverse
+          deb http://archive.ubuntu.com/ubuntu jammy-updates main restricted universe multiverse
+          deb http://security.ubuntu.com/ubuntu jammy-security main restricted universe multiverse
+          EOF
+          sudo apt update
+
+      - name: Install deps
+        run: |
+          sudo apt install -y --no-install-recommends upx
+          cargo install cross --locked
+
+      - name: Build and package .deb (GUI)
+        env:
+          PKGARCH: ${{ matrix.arch }}
+          TARGET: ${{ matrix.target }}
+          VERSION: ${{ needs.get_version.outputs.version }}
+          FEATURES: webgui,doh
+        run: |
+          contrib/deb/generate.sh
+
+      - name: Upload .deb
+        uses: actions/upload-release-asset@v1
+        with:
+          upload_url: ${{ needs.create_release.outputs.upload_url }}
+          asset_path: ruvname-${{ matrix.arch }}-v${{ needs.get_version.outputs.version }}.deb
+          asset_name: ruvname-linux-${{ matrix.arch }}-v${{ needs.get_version.outputs.version }}.deb
+          asset_content_type: application/vnd.debian.binary-package
+
+  build_windows_gui:
+    name: Build Windows GUI ZIPs
+    runs-on: windows-latest
+    needs: [create_release, get_version]
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Build GUI
+        run: cargo build --release
+
+      - name: Build Edge
+        run: cargo build --release --features edge --target-dir edge
+
+      - name: Package GUI
+        run: |
+          $version = "${{ needs.get_version.outputs.version }}"
+          Compress-Archive -Path target/release/ruvname.exe, ruvname.toml, README.md, LICENSE, adblock.txt -DestinationPath "ruvname-windows-amd64-v$version-gui.zip"
+
+      - name: Package Edge
+        run: |
+          $version = "${{ needs.get_version.outputs.version }}"
+          Compress-Archive -Path edge/release/ruvname.exe, ruvname.toml, README.md, LICENSE, adblock.txt -DestinationPath "ruvname-windows-amd64-v$version-edge.zip"
+
+      - name: Upload GUI
+        uses: actions/upload-release-asset@v1
+        with:
+          upload_url: ${{ needs.create_release.outputs.upload_url }}
+          asset_path: ruvname-windows-amd64-v${{ needs.get_version.outputs.version }}-gui.zip
+          asset_name: ruvname-windows-amd64-v${{ needs.get_version.outputs.version }}-gui.zip
+          asset_content_type: application/zip
+
+      - name: Upload Edge
+        uses: actions/upload-release-asset@v1
+        with:
+          upload_url: ${{ needs.create_release.outputs.upload_url }}
+          asset_path: ruvname-windows-amd64-v${{ needs.get_version.outputs.version }}-edge.zip
+          asset_name: ruvname-windows-amd64-v${{ needs.get_version.outputs.version }}-edge.zip
+          asset_content_type: application/zip
+
+  build_linux_gui_zip:
+    name: Build Linux GUI ZIP
+    runs-on: ubuntu-22.04
+    needs: [create_release, get_version]
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Fix APT sources
+        run: |
+          set -eux
+          sudo rm -rf /etc/apt/sources.list.d/* /etc/apt/sources.list
+          sudo tee /etc/apt/sources.list << 'EOF'
+          deb http://archive.ubuntu.com/ubuntu jammy main restricted universe multiverse
+          deb http://archive.ubuntu.com/ubuntu jammy-updates main restricted universe multiverse
+          deb http://security.ubuntu.com/ubuntu jammy-security main restricted universe multiverse
+          EOF
+          sudo apt update
+
+      - name: Install deps
+        run: |
+          sudo apt install -y --no-install-recommends libwebkit2gtk-4.0-dev upx
+
+      - name: Build GUI
+        run: cargo build --release
+
+      - name: Optimize with UPX
+        run: upx --best target/release/ruvname || echo "UPX not available"
+
+      - name: Package GUI
+        run: |
+          VERSION=${{ needs.get_version.outputs.version }}
+          mkdir -p dist
+          cp target/release/ruvname ruvname.toml README.md LICENSE adblock.txt dist/
+          cd dist && zip -r "ruvname-linux-amd64-v$VERSION-gui.zip" *
+
+      - name: Upload GUI ZIP
+        uses: actions/upload-release-asset@v1
+        with:
+          upload_url: ${{ needs.create_release.outputs.upload_url }}
+          asset_path: dist/ruvname-linux-amd64-v${{ needs.get_version.outputs.version }}-gui.zip
+          asset_name: ruvname-linux-amd64-v${{ needs.get_version.outputs.version }}-gui.zip
+          asset_content_type: application/zip
