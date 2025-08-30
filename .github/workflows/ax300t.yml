@@ -1,0 +1,32 @@
+  build_openwrt_ipk:
+    name: Build OpenWrt .ipk for Xiaomi Mi AX3000T
+    runs-on: ubuntu-22.04
+    needs: [get_version]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download OpenWrt SDK
+        run: |
+          wget https://downloads.openwrt.org/releases/24.10.0/targets/mediatek/filogic/openwrt-sdk-24.10.0-mediatek-filogic_gcc-13.3.0_musl.Linux-x86_64.tar.xz
+          tar -xf openwrt-sdk-*.tar.xz
+          cd openwrt-sdk-*
+
+      - name: Prepare ruvname package
+        run: |
+          mkdir -p package/ruvname/src
+          cp -r $GITHUB_WORKSPACE/* package/ruvname/src/
+          cp $GITHUB_WORKSPACE/contrib/openwrt/Makefile package/ruvname/
+          cp $GITHUB_WORKSPACE/contrib/openwrt/files/* package/ruvname/files/
+
+      - name: Build .ipk
+        run: |
+          cd openwrt-sdk-*
+          make package/ruvname/compile V=s
+
+      - name: Upload .ipk
+        uses: actions/upload-release-asset@v1
+        with:
+          upload_url: ${{ needs.create_release.outputs.upload_url }}
+          asset_path: openwrt-sdk-*/bin/packages/aarch64_cortex-a53/base/ruvname_*.ipk
+          asset_name: ruvname-router-mi-ax3000t-openwrt24.10-v${{ needs.get_version.outputs.tag }}.ipk
+          asset_content_type: application/octet-stream
