@@ -49,7 +49,7 @@ jobs:
             * Various fixes and stability improvements.
             ## Documentation & others
             * Updated documentation.
-          draft: false
+          draft: true
           prerelease: false
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
