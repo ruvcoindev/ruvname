@@ -1,32 +1,139 @@
+name: Build OpenWrt .ipk for Xiaomi Mi AX3000T
+
+on:
+  push:
+    tags:
+      - 'v[0-9]+.[0-9]+.[0-9]+'  # v1.2.3
+  workflow_dispatch:
+
+env:
+  GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+  CARGO_TERM_COLOR: always
+
+jobs:
+  get_version:
+    name: Get version from tag
+    runs-on: ubuntu-22.04
+    outputs:
+      version: ${{ env.VERSION }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Extract version
+        run: |
+          VERSION="${GITHUB_REF#refs/tags/v}"
+          if [[ "$VERSION" == "$GITHUB_REF" ]]; then
+            VERSION="dev-$(git rev-parse --short HEAD)"
+          fi
+          echo "VERSION=$VERSION" >> $GITHUB_ENV
+          echo "📦 Version: $VERSION"
+
   build_openwrt_ipk:
     name: Build OpenWrt .ipk for Xiaomi Mi AX3000T
     runs-on: ubuntu-22.04
-    needs: [get_version]
+    needs: get_version
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout code
+        uses: actions/checkout@v4
 
       - name: Download OpenWrt SDK
         run: |
           wget https://downloads.openwrt.org/releases/24.10.0/targets/mediatek/filogic/openwrt-sdk-24.10.0-mediatek-filogic_gcc-13.3.0_musl.Linux-x86_64.tar.xz
           tar -xf openwrt-sdk-*.tar.xz
-          cd openwrt-sdk-*
+          mv openwrt-sdk-* openwrt-sdk
 
-      - name: Prepare ruvname package
+      - name: Prepare package structure
         run: |
-          mkdir -p package/ruvname/src
+          cd openwrt-sdk
+          mkdir -p package/ruvname/files
           cp -r $GITHUB_WORKSPACE/* package/ruvname/src/
-          cp $GITHUB_WORKSPACE/contrib/openwrt/Makefile package/ruvname/
-          cp $GITHUB_WORKSPACE/contrib/openwrt/files/* package/ruvname/files/
+
+          # Создаём Makefile
+          cat > package/ruvname/Makefile << 'EOF'
+include $(TOPDIR)/rules.mk
+
+PKG_NAME:=ruvname
+PKG_VERSION:=${{ needs.get_version.outputs.version }}
+PKG_RELEASE:=1
+
+PKG_BUILD_DIR:=$(BUILD_DIR)/$(PKG_NAME)
+
+include $(INCLUDE_DIR)/package.mk
+
+define Package/ruvname
+  SECTION:=net
+  CATEGORY:=Network
+  TITLE:=RUVNAME - Decentralized DNS and mesh network
+  DEPENDS:=+libopenssl +ca-bundle
+  MAINTAINER:=ruvcoindev <admin@ruvcha.in>
+endef
+
+define Package/ruvname/description
+  RUVNAME client for OpenWrt. Participates in blockchain, DNS resolution, and P2P networking.
+endef
+
+define Build/Prepare
+	mkdir -p $(PKG_BUILD_DIR)
+	cp -r $(TOPDIR)/../src/* $(PKG_BUILD_DIR)/
+endef
+
+define Build/Compile
+	cross build --target aarch64-unknown-linux-musl --release
+	cp $(PKG_BUILD_DIR)/target/aarch64-unknown-linux-musl/release/ruvname $(PKG_BUILD_DIR)/
+endef
+
+define Package/ruvname/install
+	$(INSTALL_DIR) $(1)/usr/bin
+	$(INSTALL_BIN) $(PKG_BUILD_DIR)/ruvname $(1)/usr/bin/
+
+	$(INSTALL_DIR) $(1)/etc/init.d
+	$(INSTALL_BIN) ./files/ruvname.init $(1)/etc/init.d/ruvname
+
+	$(INSTALL_DIR) $(1)/etc/config
+	$(INSTALL_DATA) ./files/ruvname.config $(1)/etc/config/ruvname
+
+	$(INSTALL_DIR) $(1)/etc/ruvname
+endef
+
+$(eval $(call BuildPackage,ruvname))
+EOF
+
+          # Создаём init-скрипт
+          mkdir -p package/ruvname/files
+          cat > package/ruvname/files/ruvname.init << 'EOF'
+#!/bin/sh /etc/rc.common
+USE_PROCD=1
+START=99
+STOP=10
+start_service() {
+    procd_open_instance
+    procd_set_param command /usr/bin/ruvname -c /etc/ruvname/ruvname.toml
+    procd_set_param respawn
+    procd_close_instance
+}
+reload_service() {
+    service_triggers
+}
+EOF
+
+          # Конфиг OpenWrt
+          cat > package/ruvname/files/ruvname.config << 'EOF'
+config ruvname
+    option enabled '1'
+EOF
 
       - name: Build .ipk
         run: |
-          cd openwrt-sdk-*
+          cd openwrt-sdk
           make package/ruvname/compile V=s
 
       - name: Upload .ipk
         uses: actions/upload-release-asset@v1
         with:
-          upload_url: ${{ needs.create_release.outputs.upload_url }}
-          asset_path: openwrt-sdk-*/bin/packages/aarch64_cortex-a53/base/ruvname_*.ipk
-          asset_name: ruvname-router-mi-ax3000t-openwrt24.10-v${{ needs.get_version.outputs.tag }}.ipk
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: openwrt-sdk/bin/packages/aarch64_cortex-a53/base/ruvname_*.ipk
+          asset_name: ruvname-router-mi-ax3000t-openwrt24.10-v${{ needs.get_version.outputs.version }}.ipk
           asset_content_type: application/octet-stream
