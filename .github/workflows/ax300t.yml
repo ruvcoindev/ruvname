@@ -6,10 +6,6 @@ on:
       - 'v[0-9]+.[0-9]+.[0-9]+'  # v1.2.3
   workflow_dispatch:
 
-env:
-  GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-  CARGO_TERM_COLOR: always
-
 jobs:
   get_version:
     name: Get version from tag
@@ -19,8 +15,6 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
 
       - name: Extract version
         run: |
@@ -29,10 +23,9 @@ jobs:
             VERSION="dev-$(git rev-parse --short HEAD)"
           fi
           echo "VERSION=$VERSION" >> $GITHUB_ENV
-          echo "📦 Version: $VERSION"
 
   build_openwrt_ipk:
-    name: Build OpenWrt .ipk for Xiaomi Mi AX3000T
+    name: Build .ipk for Mi AX3000T
     runs-on: ubuntu-22.04
     needs: get_version
     steps:
@@ -49,19 +42,17 @@ jobs:
         run: |
           cd openwrt-sdk
           mkdir -p package/ruvname/files
-          cp -r $GITHUB_WORKSPACE/* package/ruvname/src/
 
-          # Создаём Makefile
           cat > package/ruvname/Makefile << 'EOF'
-include $(TOPDIR)/rules.mk
+include \$(TOPDIR)/rules.mk
 
 PKG_NAME:=ruvname
 PKG_VERSION:=${{ needs.get_version.outputs.version }}
 PKG_RELEASE:=1
 
-PKG_BUILD_DIR:=$(BUILD_DIR)/$(PKG_NAME)
+PKG_BUILD_DIR:=$(BUILD_DIR)/\$(PKG_NAME)
 
-include $(INCLUDE_DIR)/package.mk
+include \$(INCLUDE_DIR)/package.mk
 
 define Package/ruvname
   SECTION:=net
@@ -76,33 +67,32 @@ define Package/ruvname/description
 endef
 
 define Build/Prepare
-	mkdir -p $(PKG_BUILD_DIR)
-	cp -r $(TOPDIR)/../src/* $(PKG_BUILD_DIR)/
+	mkdir -p \$(PKG_BUILD_DIR)
+	cp -r \$(TOPDIR)/../src/* \$(PKG_BUILD_DIR)/
 endef
 
 define Build/Compile
 	cross build --target aarch64-unknown-linux-musl --release
-	cp $(PKG_BUILD_DIR)/target/aarch64-unknown-linux-musl/release/ruvname $(PKG_BUILD_DIR)/
+	cp \$(PKG_BUILD_DIR)/target/aarch64-unknown-linux-musl/release/ruvname \$(PKG_BUILD_DIR)/
 endef
 
 define Package/ruvname/install
-	$(INSTALL_DIR) $(1)/usr/bin
-	$(INSTALL_BIN) $(PKG_BUILD_DIR)/ruvname $(1)/usr/bin/
+	\$(INSTALL_DIR) \$$(1)/usr/bin
+	\$(INSTALL_BIN) \$(PKG_BUILD_DIR)/ruvname \$$(1)/usr/bin/
 
-	$(INSTALL_DIR) $(1)/etc/init.d
-	$(INSTALL_BIN) ./files/ruvname.init $(1)/etc/init.d/ruvname
+	\$(INSTALL_DIR) \$$(1)/etc/init.d
+	\$(INSTALL_BIN) ./files/ruvname.init \$$(1)/etc/init.d/ruvname
 
-	$(INSTALL_DIR) $(1)/etc/config
-	$(INSTALL_DATA) ./files/ruvname.config $(1)/etc/config/ruvname
+	\$(INSTALL_DIR) \$$(1)/etc/config
+	\$(INSTALL_DATA) ./files/ruvname.config \$$(1)/etc/config/ruvname
 
-	$(INSTALL_DIR) $(1)/etc/ruvname
+	\$(INSTALL_DIR) \$$(1)/etc/ruvname
 endef
 
-$(eval $(call BuildPackage,ruvname))
+\$(eval \$$(call BuildPackage,ruvname))
 EOF
 
           # Создаём init-скрипт
-          mkdir -p package/ruvname/files
           cat > package/ruvname/files/ruvname.init << 'EOF'
 #!/bin/sh /etc/rc.common
 USE_PROCD=1
@@ -131,9 +121,7 @@ EOF
           make package/ruvname/compile V=s
 
       - name: Upload .ipk
-        uses: actions/upload-release-asset@v1
+        uses: actions/upload-artifact@v3
         with:
-          upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: openwrt-sdk/bin/packages/aarch64_cortex-a53/base/ruvname_*.ipk
-          asset_name: ruvname-router-mi-ax3000t-openwrt24.10-v${{ needs.get_version.outputs.version }}.ipk
-          asset_content_type: application/octet-stream
+          name: ruvname-ipk
+          path: openwrt-sdk/bin/packages/aarch64_cortex-a53/base/ruvname_*.ipk
